@@ -58,6 +58,11 @@ public final class HandlerInvoker {
         try {
             Object[] args = resolveArgs(method, matched.pathVariables(), requestUri, clientCert);
             return (GeminiResponse) method.invoke(handler.controller(), args);
+        } catch (IllegalArgumentException e) {
+            log.debug("Bad request to {}.{}: {}",
+                    handler.controller().getClass().getSimpleName(),
+                    method.getName(), e.getMessage());
+            return GeminiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             log.error("Handler {}.{} threw an exception",
@@ -138,24 +143,36 @@ public final class HandlerInvoker {
 
     private static Object convert(String value, Class<?> type) {
         if (value == null) {
-            return null;
+            return type.isPrimitive() ? defaultPrimitive(type) : null;
         }
-        if (type == String.class) {
+        try {
+            if (type == String.class) {
+                return value;
+            }
+            if (type == int.class || type == Integer.class) {
+                return Integer.parseInt(value);
+            }
+            if (type == long.class || type == Long.class) {
+                return Long.parseLong(value);
+            }
+            if (type == boolean.class || type == Boolean.class) {
+                return Boolean.parseBoolean(value);
+            }
+            if (type == double.class || type == Double.class) {
+                return Double.parseDouble(value);
+            }
             return value;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid value '" + value + "' for type " + type.getSimpleName());
         }
-        if (type == int.class || type == Integer.class) {
-            return Integer.parseInt(value);
-        }
-        if (type == long.class || type == Long.class) {
-            return Long.parseLong(value);
-        }
-        if (type == boolean.class || type == Boolean.class) {
-            return Boolean.parseBoolean(value);
-        }
-        if (type == double.class || type == Double.class) {
-            return Double.parseDouble(value);
-        }
-        return value;
+    }
+
+    private static Object defaultPrimitive(Class<?> type) {
+        if (type == int.class) return 0;
+        if (type == long.class) return 0L;
+        if (type == boolean.class) return false;
+        if (type == double.class) return 0.0;
+        return null;
     }
 
     private static String applyDefault(String value, Parameter param) {

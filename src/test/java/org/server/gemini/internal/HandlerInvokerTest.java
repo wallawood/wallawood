@@ -260,4 +260,12 @@ class HandlerInvokerTest {
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), URI.create("gemini://localhost/flag?active=true"), null, ExceptionResolver.none());
         assertTrue(new String(result.body()).contains("active true"));
     }
+
+    @Test
+    void invalidIntParamReturnsBadRequest() throws Exception {
+        var handler = handlerFor(new TestController(), "userInt");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of("id", "abc")), URI.create("gemini://localhost/user-int/abc"), null, ExceptionResolver.none());
+        assertEquals(59, result.status());
+        assertTrue(result.meta().contains("Invalid value"));
+    }
 }
