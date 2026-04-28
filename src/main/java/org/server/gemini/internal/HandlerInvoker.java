@@ -5,8 +5,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import org.server.gemini.GeminiResponse;
-import org.server.gemini.QueryString;
-import org.server.gemini.RequireCertificate;
+import org.server.gemini.annotations.QueryString;
+import org.server.gemini.annotations.RequireCertificate;
+import org.server.gemini.annotations.RequireInput;
+import org.server.gemini.annotations.RequireSensitiveInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,19 @@ public final class HandlerInvoker {
             return message.isEmpty()
                     ? GeminiResponse.clientCertificateRequired()
                     : GeminiResponse.clientCertificateRequired(message);
+        }
+
+        String query = requestUri.getRawQuery();
+        boolean queryMissing = query == null || query.isEmpty();
+
+        RequireInput requireInput = method.getAnnotation(RequireInput.class);
+        if (requireInput != null && queryMissing) {
+            return GeminiResponse.input(requireInput.value());
+        }
+
+        RequireSensitiveInput requireSensitive = method.getAnnotation(RequireSensitiveInput.class);
+        if (requireSensitive != null && queryMissing) {
+            return GeminiResponse.sensitiveInput(requireSensitive.value());
         }
 
         try {

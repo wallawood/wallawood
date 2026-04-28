@@ -1,6 +1,7 @@
 package org.server.gemini.internal;
 
 import org.server.gemini.GeminiResponse;
+import org.server.gemini.annotations.GeminiExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +11,7 @@ import java.util.Map;
 
 /**
  * Resolves exceptions to {@link GeminiResponse} using a user-defined
- * {@link org.server.gemini.GeminiExceptionHandler @GeminiExceptionHandler} class.
+ * {@link GeminiExceptionHandler @GeminiExceptionHandler} class.
  * Methods are matched by exception type — the most specific match wins.
  */
 public final class ExceptionResolver {

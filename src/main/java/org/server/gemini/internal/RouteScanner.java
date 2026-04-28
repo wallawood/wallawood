@@ -1,8 +1,8 @@
 package org.server.gemini.internal;
 
 import jakarta.ws.rs.Path;
-import org.server.gemini.GeminiController;
-import org.server.gemini.GeminiExceptionHandler;
+import org.server.gemini.annotations.GeminiController;
+import org.server.gemini.annotations.GeminiExceptionHandler;
 import org.server.gemini.GeminiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

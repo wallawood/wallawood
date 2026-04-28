@@ -2,7 +2,7 @@ package org.server.gemini.internal;
 
 import jakarta.ws.rs.Path;
 import org.junit.jupiter.api.Test;
-import org.server.gemini.GeminiController;
+import org.server.gemini.annotations.GeminiController;
 import org.server.gemini.internal.fixtures.RootController;
 import org.server.gemini.internal.fixtures.UserController;
 

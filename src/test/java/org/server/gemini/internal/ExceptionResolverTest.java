@@ -1,8 +1,9 @@
 package org.server.gemini.internal;
 
 import org.junit.jupiter.api.Test;
-import org.server.gemini.GeminiExceptionHandler;
+import org.server.gemini.annotations.GeminiExceptionHandler;
 import org.server.gemini.GeminiResponse;
+import org.server.gemini.annotations.GeminiController;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -70,7 +71,7 @@ class ExceptionResolverTest {
         assertTrue(result.meta().contains("Runtime: kaboom"));
     }
 
-    @org.server.gemini.GeminiController
+    @GeminiController
     static class ThrowingController {
         @jakarta.ws.rs.Path("/boom")
         public GeminiResponse boom() {

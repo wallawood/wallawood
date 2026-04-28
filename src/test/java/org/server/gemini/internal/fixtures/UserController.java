@@ -3,7 +3,7 @@ package org.server.gemini.internal.fixtures;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
-import org.server.gemini.GeminiController;
+import org.server.gemini.annotations.GeminiController;
 import org.server.gemini.GeminiResponse;
 
 @GeminiController

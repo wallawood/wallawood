@@ -6,10 +6,12 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import org.junit.jupiter.api.Test;
-import org.server.gemini.GeminiController;
+import org.server.gemini.annotations.GeminiController;
 import org.server.gemini.GeminiResponse;
-import org.server.gemini.QueryString;
-import org.server.gemini.RequireCertificate;
+import org.server.gemini.annotations.QueryString;
+import org.server.gemini.annotations.RequireCertificate;
+import org.server.gemini.annotations.RequireInput;
+import org.server.gemini.annotations.RequireSensitiveInput;
 import java.net.URI;
 import java.security.cert.X509Certificate;
 import java.util.Map;
@@ -75,6 +77,18 @@ class HandlerInvokerTest {
         @Path("/flag")
         public GeminiResponse flag(@QueryParam("active") boolean active) {
             return GeminiResponse.success("active " + active);
+        }
+
+        @Path("/search-input")
+        @RequireInput("Enter a search term:")
+        public GeminiResponse searchInput(@QueryString String input) {
+            return GeminiResponse.success("found " + input);
+        }
+
+        @Path("/login")
+        @RequireSensitiveInput("Enter password:")
+        public GeminiResponse login(@QueryString String password) {
+            return GeminiResponse.success("logged in");
         }
 
         @Path("/raw-search")
@@ -267,5 +281,37 @@ class HandlerInvokerTest {
         var result = HandlerInvoker.invoke(matched(handler, Map.of("id", "abc")), URI.create("gemini://localhost/user-int/abc"), null, ExceptionResolver.none());
         assertEquals(59, result.status());
         assertTrue(result.meta().contains("Invalid value"));
+    }
+
+    @Test
+    void requireInputReturns10WhenQueryMissing() throws Exception {
+        var handler = handlerFor(new TestController(), "searchInput");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), URI.create("gemini://localhost/search-input"), null, ExceptionResolver.none());
+        assertEquals(10, result.status());
+        assertEquals("Enter a search term:", result.meta());
+    }
+
+    @Test
+    void requireInputProceedsWhenQueryPresent() throws Exception {
+        var handler = handlerFor(new TestController(), "searchInput");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), URI.create("gemini://localhost/search-input?gemini"), null, ExceptionResolver.none());
+        assertEquals(20, result.status());
+        assertTrue(new String(result.body()).contains("found gemini"));
+    }
+
+    @Test
+    void requireSensitiveInputReturns11WhenQueryMissing() throws Exception {
+        var handler = handlerFor(new TestController(), "login");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), URI.create("gemini://localhost/login"), null, ExceptionResolver.none());
+        assertEquals(11, result.status());
+        assertEquals("Enter password:", result.meta());
+    }
+
+    @Test
+    void requireSensitiveInputProceedsWhenQueryPresent() throws Exception {
+        var handler = handlerFor(new TestController(), "login");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), URI.create("gemini://localhost/login?secret123"), null, ExceptionResolver.none());
+        assertEquals(20, result.status());
+        assertTrue(new String(result.body()).contains("logged in"));
     }
 }

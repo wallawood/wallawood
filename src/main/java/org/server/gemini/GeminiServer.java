@@ -1,5 +1,6 @@
 package org.server.gemini;
 
+import org.server.gemini.annotations.GeminiController;
 import org.server.gemini.internal.CertificateManager;
 import org.server.gemini.internal.GeminiServerEngine;
 import org.server.gemini.internal.ScanResult;
