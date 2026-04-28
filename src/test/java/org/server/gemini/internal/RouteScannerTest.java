@@ -1,6 +1,8 @@
 package org.server.gemini.internal;
 
+import jakarta.ws.rs.Path;
 import org.junit.jupiter.api.Test;
+import org.server.gemini.GeminiController;
 import org.server.gemini.internal.fixtures.RootController;
 import org.server.gemini.internal.fixtures.UserController;
 
@@ -10,6 +12,14 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RouteScannerTest {
+
+    @GeminiController
+    static class BadReturnController {
+        @Path("/bad")
+        public String bad() {
+            return "oops";
+        }
+    }
 
     @Test
     void registersControllerWithClassLevelPath() {
@@ -41,7 +51,8 @@ class RouteScannerTest {
 
     @Test
     void scanFindsControllersInPackage() {
-        RouteRegistry registry = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        ScanResult result = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        RouteRegistry registry = result.routeRegistry();
 
         assertNotNull(registry.match("/users"));
         assertNotNull(registry.match("/users/42"));
@@ -53,7 +64,8 @@ class RouteScannerTest {
 
     @Test
     void matchExtractsPathVariables() {
-        RouteRegistry registry = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        ScanResult result = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        RouteRegistry registry = result.routeRegistry();
 
         var match = registry.match("/users/42");
         assertNotNull(match);
@@ -62,8 +74,16 @@ class RouteScannerTest {
 
     @Test
     void noMatchReturnsNull() {
-        RouteRegistry registry = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        ScanResult result = RouteScanner.scan("org.server.gemini.internal.fixtures");
+        RouteRegistry registry = result.routeRegistry();
         assertNull(registry.match("/nonexistent"));
+    }
+
+    @Test
+    void rejectsHandlerWithWrongReturnType() {
+        Map<String, HandlerMethod> routes = new LinkedHashMap<>();
+        assertThrows(IllegalStateException.class,
+                () -> RouteScanner.registerController(new BadReturnController(), routes));
     }
 
     @Test

@@ -34,6 +34,7 @@ import java.util.Properties;
  * <p>Supported properties:
  * <ul>
  *   <li>{@code gemini.hostname} — server hostname for TLS SNI and certificate CN (default: {@code localhost})</li>
+ *   <li>{@code gemini.bind-address} — address to bind the server socket to (default: {@code 0.0.0.0})</li>
  *   <li>{@code gemini.port} — listening port (default: {@code 1965})</li>
  *   <li>{@code gemini.cert.path} — path to certificate PEM file (optional)</li>
  *   <li>{@code gemini.key.path} — path to private key PEM file (optional, required if cert.path is set)</li>
@@ -42,15 +43,18 @@ import java.util.Properties;
 public final class GeminiConfig {
 
     private static final String DEFAULT_HOSTNAME = "localhost";
+    private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0";
     private static final int DEFAULT_PORT = 1965;
 
     private final String hostname;
+    private final String bindAddress;
     private final int port;
     private final Path certPath;
     private final Path keyPath;
 
-    private GeminiConfig(String hostname, int port, Path certPath, Path keyPath) {
+    private GeminiConfig(String hostname, String bindAddress, int port, Path certPath, Path keyPath) {
         this.hostname = hostname;
+        this.bindAddress = bindAddress;
         this.port = port;
         this.certPath = certPath;
         this.keyPath = keyPath;
@@ -63,7 +67,7 @@ public final class GeminiConfig {
      * @return the default configuration
      */
     public static GeminiConfig defaults() {
-        return new GeminiConfig(DEFAULT_HOSTNAME, DEFAULT_PORT, null, null);
+        return new GeminiConfig(DEFAULT_HOSTNAME, DEFAULT_BIND_ADDRESS, DEFAULT_PORT, null, null);
     }
 
     /**
@@ -73,6 +77,17 @@ public final class GeminiConfig {
      */
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Loads configuration from {@code gemini.properties} in the working directory.
+     *
+     * @return a configuration loaded from {@code gemini.properties}
+     * @throws IllegalArgumentException if the file cannot be read or cert/key paths are inconsistent
+     * @see #fromProperties(Path)
+     */
+    public static GeminiConfig fromProperties() {
+        return fromProperties(Path.of("gemini.properties"));
     }
 
     /**
@@ -93,6 +108,7 @@ public final class GeminiConfig {
         }
 
         String hostname = props.getProperty("gemini.hostname", DEFAULT_HOSTNAME);
+        String bindAddress = props.getProperty("gemini.bind-address", DEFAULT_BIND_ADDRESS);
         int port = Integer.parseInt(props.getProperty("gemini.port", String.valueOf(DEFAULT_PORT)));
         String certStr = props.getProperty("gemini.cert.path");
         String keyStr = props.getProperty("gemini.key.path");
@@ -104,12 +120,17 @@ public final class GeminiConfig {
             throw new IllegalArgumentException("Both gemini.cert.path and gemini.key.path must be set, or neither");
         }
 
-        return new GeminiConfig(hostname, port, certPath, keyPath);
+        return new GeminiConfig(hostname, bindAddress, port, certPath, keyPath);
     }
 
     /** Server hostname for TLS SNI and certificate CN. */
     public String hostname() {
         return hostname;
+    }
+
+    /** Address to bind the server socket to. Defaults to {@code 0.0.0.0} (all interfaces). */
+    public String bindAddress() {
+        return bindAddress;
     }
 
     /** Listening port. Gemini default is 1965. */
@@ -130,6 +151,7 @@ public final class GeminiConfig {
     public static final class Builder {
 
         private String hostname = DEFAULT_HOSTNAME;
+        private String bindAddress = DEFAULT_BIND_ADDRESS;
         private int port = DEFAULT_PORT;
         private Path certPath;
         private Path keyPath;
@@ -146,6 +168,17 @@ public final class GeminiConfig {
          */
         public Builder hostname(String hostname) {
             this.hostname = hostname;
+            return this;
+        }
+
+        /**
+         * Sets the address to bind the server socket to.
+         *
+         * @param bindAddress the bind address (default: {@code 0.0.0.0})
+         * @return this builder
+         */
+        public Builder bindAddress(String bindAddress) {
+            this.bindAddress = bindAddress;
             return this;
         }
 
@@ -185,7 +218,7 @@ public final class GeminiConfig {
             if ((certPath == null) != (keyPath == null)) {
                 throw new IllegalArgumentException("Both certPath and keyPath must be set, or neither");
             }
-            return new GeminiConfig(hostname, port, certPath, keyPath);
+            return new GeminiConfig(hostname, bindAddress, port, certPath, keyPath);
         }
     }
 }

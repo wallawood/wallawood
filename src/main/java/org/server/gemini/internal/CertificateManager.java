@@ -24,6 +24,7 @@ import java.io.Reader;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -33,6 +34,7 @@ import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Set;
 
 /**
  * Manages TLS certificates for the Gemini server. Supports loading user-provided
@@ -91,9 +93,10 @@ public final class CertificateManager {
      * (prime256v1) keys and are valid for 10 years.
      *
      * @param directory the directory to store/load PEM files
+     * @param hostname the hostname for the certificate CN
      * @return a configured {@link CertificateManager}
      */
-    public static CertificateManager loadOrGenerate(Path directory) {
+    public static CertificateManager loadOrGenerate(Path directory, String hostname) {
         Path certPath = directory.resolve(CERT_FILE);
         Path keyPath = directory.resolve(KEY_FILE);
 
@@ -112,7 +115,7 @@ public final class CertificateManager {
             KeyPair keyPair = keyGen.generateKeyPair();
 
             Instant now = Instant.now();
-            X500Name subject = new X500Name("CN=localhost");
+            X500Name subject = new X500Name("CN=" + hostname);
             BigInteger serial = BigInteger.valueOf(now.toEpochMilli());
 
             ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA")
@@ -134,6 +137,7 @@ public final class CertificateManager {
 
             writePem(certPath, cert);
             writePem(keyPath, keyPair.getPrivate());
+            restrictPermissions(keyPath);
 
             log.info("Generated self-signed certificate in {}", directory);
             return new CertificateManager(cert, keyPair.getPrivate());
@@ -185,6 +189,18 @@ public final class CertificateManager {
     private static void writePem(Path path, Object obj) throws IOException {
         try (JcaPEMWriter writer = new JcaPEMWriter(Files.newBufferedWriter(path))) {
             writer.writeObject(obj);
+        }
+    }
+
+    private static void restrictPermissions(Path path) {
+        try {
+            Files.setPosixFilePermissions(path, Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE));
+        } catch (UnsupportedOperationException e) {
+            // Non-POSIX filesystem (e.g. Windows) — skip
+        } catch (IOException e) {
+            log.warn("Could not restrict permissions on {}", path);
         }
     }
 }

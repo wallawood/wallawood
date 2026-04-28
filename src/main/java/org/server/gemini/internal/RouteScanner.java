@@ -2,6 +2,8 @@ package org.server.gemini.internal;
 
 import jakarta.ws.rs.Path;
 import org.server.gemini.GeminiController;
+import org.server.gemini.GeminiExceptionHandler;
+import org.server.gemini.GeminiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -13,8 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Scans the classpath for classes annotated with {@link GeminiController @GeminiController},
- * discovers their {@link Path @Path}-annotated methods, and builds a {@link RouteRegistry}.
+ * Scans the classpath for classes annotated with {@link GeminiController @GeminiController}
+ * and {@link GeminiExceptionHandler @GeminiExceptionHandler}, discovers their annotated
+ * methods, and builds a {@link ScanResult}.
  */
 public final class RouteScanner {
 
@@ -24,30 +27,51 @@ public final class RouteScanner {
     }
 
     /**
-     * Scans the given base package for {@link GeminiController @GeminiController} classes
-     * and builds a route registry from their {@link Path @Path}-annotated methods.
+     * Scans the given base package for controllers and exception handlers.
      *
      * @param basePackage the package to scan (e.g. {@code "com.myapp"})
-     * @return a populated {@link RouteRegistry}
+     * @return a {@link ScanResult} with the route registry and exception resolver
      */
-    public static RouteRegistry scan(String basePackage) {
+    public static ScanResult scan(String basePackage) {
+        Map<String, HandlerMethod> routes = new LinkedHashMap<>();
+        Object exceptionHandler = null;
+
         var scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(GeminiController.class));
-
-        Map<String, HandlerMethod> routes = new LinkedHashMap<>();
+        scanner.addIncludeFilter(new AnnotationTypeFilter(GeminiExceptionHandler.class));
 
         for (BeanDefinition bd : scanner.findCandidateComponents(basePackage)) {
             try {
                 Class<?> clazz = Class.forName(bd.getBeanClassName());
                 Object instance = clazz.getDeclaredConstructor().newInstance();
-                registerController(instance, routes);
+
+                if (clazz.isAnnotationPresent(GeminiController.class)) {
+                    registerController(instance, routes);
+                }
+
+                if (clazz.isAnnotationPresent(GeminiExceptionHandler.class)) {
+                    if (exceptionHandler != null) {
+                        throw new IllegalStateException(
+                                "Multiple @GeminiExceptionHandler classes found: "
+                                        + exceptionHandler.getClass().getName() + " and " + clazz.getName());
+                    }
+                    exceptionHandler = instance;
+                    log.info("Registered exception handler: {}", clazz.getSimpleName());
+                }
+            } catch (IllegalStateException e) {
+                throw e;
             } catch (Exception e) {
-                throw new RuntimeException("Failed to instantiate controller: " + bd.getBeanClassName(), e);
+                throw new RuntimeException("Failed to instantiate: " + bd.getBeanClassName(), e);
             }
         }
 
         log.info("Registered {} route(s) from package '{}'", routes.size(), basePackage);
-        return new RouteRegistry(routes);
+
+        ExceptionResolver resolver = exceptionHandler != null
+                ? new ExceptionResolver(exceptionHandler)
+                : ExceptionResolver.none();
+
+        return new ScanResult(new RouteRegistry(routes), resolver);
     }
 
     /**
@@ -78,6 +102,12 @@ public final class RouteScanner {
             }
 
             log.debug("Mapping {} -> {}.{}", fullPath, clazz.getSimpleName(), method.getName());
+
+            if (!GeminiResponse.class.equals(method.getReturnType())) {
+                throw new IllegalStateException(
+                        clazz.getSimpleName() + "." + method.getName()
+                                + " must return GeminiResponse, found " + method.getReturnType().getSimpleName());
+            }
 
             if (routes.containsKey(fullPath)) {
                 throw new IllegalStateException("Duplicate route: " + fullPath);

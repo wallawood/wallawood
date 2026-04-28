@@ -16,7 +16,7 @@ class CertificateManagerTest {
 
     @Test
     void generatesNewCertificate() {
-        CertificateManager cm = CertificateManager.loadOrGenerate(tempDir.resolve("certs"));
+        CertificateManager cm = CertificateManager.loadOrGenerate(tempDir.resolve("certs"), "localhost");
 
         assertTrue(Files.exists(tempDir.resolve("certs/cert.pem")));
         assertTrue(Files.exists(tempDir.resolve("certs/key.pem")));
@@ -26,10 +26,10 @@ class CertificateManagerTest {
     @Test
     void reusesExistingCertificate() {
         Path certDir = tempDir.resolve("certs");
-        CertificateManager ignored = CertificateManager.loadOrGenerate(certDir);
+        CertificateManager.loadOrGenerate(certDir, "localhost");
         long certModified = certDir.resolve("cert.pem").toFile().lastModified();
 
-        CertificateManager second = CertificateManager.loadOrGenerate(certDir);
+        CertificateManager second = CertificateManager.loadOrGenerate(certDir, "localhost");
         long certModifiedAfter = certDir.resolve("cert.pem").toFile().lastModified();
 
         assertEquals(certModified, certModifiedAfter);
@@ -39,7 +39,7 @@ class CertificateManagerTest {
     @Test
     void loadFromGeneratedFiles() {
         Path certDir = tempDir.resolve("certs");
-        CertificateManager.loadOrGenerate(certDir);
+        CertificateManager.loadOrGenerate(certDir, "localhost");
 
         CertificateManager loaded = CertificateManager.load(
                 certDir.resolve("cert.pem"),
@@ -56,7 +56,7 @@ class CertificateManagerTest {
 
     @Test
     void buildsSslContext() {
-        CertificateManager cm = CertificateManager.loadOrGenerate(tempDir.resolve("certs"));
+        CertificateManager cm = CertificateManager.loadOrGenerate(tempDir.resolve("certs"), "localhost");
         SslContext ctx = cm.sslContext();
         assertNotNull(ctx);
         assertTrue(ctx.isServer());
@@ -64,7 +64,7 @@ class CertificateManagerTest {
 
     @Test
     void generatedCertIsPemFormat() throws Exception {
-        CertificateManager.loadOrGenerate(tempDir.resolve("certs"));
+        CertificateManager.loadOrGenerate(tempDir.resolve("certs"), "example.com");
         String certContent = Files.readString(tempDir.resolve("certs/cert.pem"));
         String keyContent = Files.readString(tempDir.resolve("certs/key.pem"));
 

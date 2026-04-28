@@ -18,6 +18,7 @@ class GeminiConfigTest {
     void defaultsUsesLocalhostAnd1965() {
         GeminiConfig config = GeminiConfig.defaults();
         assertEquals("localhost", config.hostname());
+        assertEquals("0.0.0.0", config.bindAddress());
         assertEquals(1965, config.port());
         assertNull(config.certPath());
         assertNull(config.keyPath());
@@ -131,5 +132,14 @@ class GeminiConfigTest {
     void fromPropertiesRejectsMissingFile() {
         assertThrows(IllegalArgumentException.class,
                 () -> GeminiConfig.fromProperties(tempDir.resolve("nope.properties")));
+    }
+
+    @Test
+    void fromPropertiesDefaultPathReadsFromWorkingDirectory() {
+        GeminiConfig config = GeminiConfig.fromProperties();
+        assertEquals("testhost.local", config.hostname());
+        assertEquals(1966, config.port());
+        assertNull(config.certPath());
+        assertNull(config.keyPath());
     }
 }

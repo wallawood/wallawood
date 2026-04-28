@@ -45,8 +45,14 @@ public final class StaticResourceResolver {
 
         String resourcePath = STATIC_ROOT + path;
 
-        if (resourcePath.contains("..")) {
-            log.warn("Rejected path traversal attempt: {}", path);
+        if (resourcePath.contains("..") || resourcePath.contains("\0")) {
+            log.warn("Rejected path traversal attempt: {}", path.replaceAll("[\\r\\n]", ""));
+            return GeminiResponse.badRequest("Invalid path");
+        }
+
+        String normalized = java.nio.file.Path.of(resourcePath).normalize().toString();
+        if (!normalized.startsWith(STATIC_ROOT)) {
+            log.warn("Rejected path traversal attempt: {}", path.replaceAll("[\\r\\n]", ""));
             return GeminiResponse.badRequest("Invalid path");
         }
 
