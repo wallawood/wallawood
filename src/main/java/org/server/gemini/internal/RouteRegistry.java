@@ -1,5 +1,6 @@
 package org.server.gemini.internal;
 
+import org.springframework.http.server.PathContainer;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
@@ -33,7 +34,7 @@ public final class RouteRegistry {
      * @return the matching route, or {@code null} if no route matches
      */
     public MatchedRoute match(String path) {
-        var pathContainer = org.springframework.http.server.PathContainer.parsePath(path);
+        var pathContainer = PathContainer.parsePath(path);
         for (var entry : routes.entrySet()) {
             var info = entry.getKey().matchAndExtract(pathContainer);
             if (info != null) {

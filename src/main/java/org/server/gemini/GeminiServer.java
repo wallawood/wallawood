@@ -6,6 +6,8 @@ import org.server.gemini.internal.RouteScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+
 /**
  * The main entry point for a Gemini protocol server. Scans the application for
  * {@link GeminiController @GeminiController} classes, builds a route registry,
@@ -73,7 +75,7 @@ public final class GeminiServer {
         if (config.certPath() != null) {
             certManager = CertificateManager.load(config.certPath(), config.keyPath());
         } else {
-            certManager = CertificateManager.loadOrGenerate(java.nio.file.Path.of("gemini-certs"));
+            certManager = CertificateManager.loadOrGenerate(Path.of("gemini-certs"));
         }
 
         GeminiServer server = new GeminiServer(registry, certManager, config);
