@@ -4,7 +4,7 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'org.server.gemini'
+group = 'io.gemboot'
 version = '0.1.0-SNAPSHOT'
 
 java {
@@ -36,10 +36,22 @@ tasks.named('test') {
 
 shadowJar {
     minimize()
-    relocate 'org.springframework', 'org.server.gemini.internal.spring'
-    relocate 'io.micrometer', 'org.server.gemini.internal.micrometer'
-    relocate 'org.bouncycastle', 'org.server.gemini.internal.bouncycastle'
+    relocate 'org.springframework', 'io.gemboot.internal.spring'
+    relocate 'io.micrometer', 'io.gemboot.internal.micrometer'
+    relocate 'org.bouncycastle', 'io.gemboot.internal.bouncycastle'
     archiveClassifier.set('')
+}
+
+publishing {
+    publications {
+        shadow(MavenPublication) {
+            artifact shadowJar
+            pom {
+                name = 'Gemboot Server'
+                description = 'A Java library for building Gemini protocol servers'
+            }
+        }
+    }
 }
 
 tasks.build {
