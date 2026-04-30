@@ -1,5 +1,8 @@
 package io.gemboot;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -43,12 +46,13 @@ import java.util.Properties;
  *   <li>{@code gemboot.port} — listening port (default: {@code 1965})</li>
  *   <li>{@code gemboot.cert.path} — path to certificate PEM file (optional)</li>
  *   <li>{@code gemboot.key.path} — path to private key PEM file (optional, required if cert.path is set)</li>
- *   <li>{@code gemboot.static-directories} — comma-separated list of additional static resource directories
+ *   <li>{@code gemboot.static.directories} — comma-separated list of additional static resource directories
  *       using {@code classpath:} or {@code file:} prefixes (e.g. {@code classpath:/public,file:./content}).
  *       The built-in {@code classpath:/static} is always resolved first.</li>
  * </ul>
  */
 public final class GembootConfig {
+    private static final Logger log = LoggerFactory.getLogger(GembootConfig.class);
 
     private static final String DEFAULT_HOSTNAME = "localhost";
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0";
@@ -111,11 +115,12 @@ public final class GembootConfig {
      * @throws IllegalArgumentException if the file cannot be read or cert/key paths are inconsistent
      */
     public static GembootConfig fromProperties(Path path) {
+        log.info("Loading properties from path {}", path);
         Properties props = new Properties();
         try (InputStream in = Files.newInputStream(path)) {
             props.load(in);
         } catch (IOException e) {
-            throw new IllegalArgumentException("Failed to read properties file: " + path, e);
+            throw new IllegalArgumentException("Failed to read properties file: " + path.toAbsolutePath(), e);
         }
 
         String hostname = props.getProperty("gemboot.hostname", DEFAULT_HOSTNAME);
@@ -131,7 +136,7 @@ public final class GembootConfig {
             throw new IllegalArgumentException("Both gemboot.cert.path and gemboot.key.path must be set, or neither");
         }
 
-        List<String> staticDirs = parseStaticDirectories(props.getProperty("gemboot.static-directories"));
+        List<String> staticDirs = parseStaticDirectories(props.getProperty("gemboot.static.directories"));
 
         return new GembootConfig(hostname, bindAddress, port, certPath, keyPath, staticDirs);
     }

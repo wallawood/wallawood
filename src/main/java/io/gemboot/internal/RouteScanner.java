@@ -36,6 +36,7 @@ public final class RouteScanner {
         Map<String, HandlerMethod> routes = new LinkedHashMap<>();
         Object exceptionHandler = null;
 
+        log.info("Scanning '{}' for annotated classes...", basePackage);
         var scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(GeminiController.class));
         scanner.addIncludeFilter(new AnnotationTypeFilter(GeminiExceptionHandler.class));

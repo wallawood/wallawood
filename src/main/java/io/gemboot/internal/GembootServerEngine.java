@@ -55,22 +55,13 @@ public final class GembootServerEngine {
     }
 
     /**
-     * Starts the server and blocks until it is shut down.
-     */
-    public void start() {
-        DisposableServer server = createServer();
-        log.debug("Gemini server listening on {}:{}", config.hostname(), config.port());
-        server.onDispose().block();
-    }
-
-    /**
      * Starts the server and returns the handle for programmatic shutdown.
      *
      * @return the disposable server handle
      */
     public DisposableServer startNonBlocking() {
         DisposableServer server = createServer();
-        log.debug("Gemini server listening on {}:{}", config.hostname(), config.port());
+        log.info("Gemini server listening on {}:{}", config.hostname(), config.port());
         return server;
     }
 

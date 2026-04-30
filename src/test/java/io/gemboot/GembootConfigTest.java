@@ -152,7 +152,7 @@ class GembootConfigTest {
     @Test
     void fromPropertiesParsesStaticDirectories() throws IOException {
         Path propsFile = tempDir.resolve("application.properties");
-        Files.writeString(propsFile, "gemboot.static-directories=classpath:/public,file:./content\n");
+        Files.writeString(propsFile, "gemboot.static.directories=classpath:/public,file:./content\n");
 
         GembootConfig config = GembootConfig.fromProperties(propsFile);
 
@@ -162,7 +162,7 @@ class GembootConfigTest {
     @Test
     void fromPropertiesParsesStaticDirectoriesWithSpaces() throws IOException {
         Path propsFile = tempDir.resolve("application.properties");
-        Files.writeString(propsFile, "gemboot.static-directories= classpath:/public , file:./content \n");
+        Files.writeString(propsFile, "gemboot.static.directories= classpath:/public , file:./content \n");
 
         GembootConfig config = GembootConfig.fromProperties(propsFile);
 
@@ -172,7 +172,7 @@ class GembootConfigTest {
     @Test
     void fromPropertiesEmptyStaticDirectories() throws IOException {
         Path propsFile = tempDir.resolve("application.properties");
-        Files.writeString(propsFile, "gemboot.static-directories=\n");
+        Files.writeString(propsFile, "gemboot.static.directories=\n");
 
         GembootConfig config = GembootConfig.fromProperties(propsFile);
 

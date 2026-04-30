@@ -72,7 +72,7 @@ public final class GembootServer {
     public static void start(Class<?> applicationClass, GembootConfig config) {
         GembootServer server = launch(applicationClass, config);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.debug("Shutting down Gemini server...");
+            log.info("Shutting down Gemini server...");
             server.stop();
         }));
         server.server.onDispose().block();
@@ -99,8 +99,6 @@ public final class GembootServer {
      */
     public static GembootServer launch(Class<?> applicationClass, GembootConfig config) {
         String basePackage = applicationClass.getPackageName();
-        log.debug("Scanning '{}' for @GeminiController classes", basePackage);
-
         ScanResult scanResult = RouteScanner.scan(basePackage);
 
         CertificateManager certManager;
@@ -122,7 +120,7 @@ public final class GembootServer {
      */
     public void stop() {
         server.disposeNow();
-        log.debug("Gemini server stopped");
+        log.info("Gemini server stopped");
     }
 
     /**
@@ -151,7 +149,6 @@ public final class GembootServer {
      */
     private static GembootConfig resolveConfig() {
         if (Files.exists(DEFAULT_PROPERTIES)) {
-            log.debug("Loading configuration from {}", DEFAULT_PROPERTIES);
             return GembootConfig.fromProperties();
         }
         return GembootConfig.defaults();
