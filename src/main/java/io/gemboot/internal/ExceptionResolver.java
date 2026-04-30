@@ -26,6 +26,8 @@ public final class ExceptionResolver {
     /**
      * Creates a resolver from the given exception handler instance.
      * Validates that all methods accept a single Throwable parameter and return GeminiResponse.
+     *
+     * @param handler the {@link GeminiExceptionHandler @GeminiExceptionHandler} instance
      */
     public ExceptionResolver(Object handler) {
         this.handler = handler;
@@ -51,6 +53,9 @@ public final class ExceptionResolver {
     /**
      * Resolves the given exception to a GeminiResponse. Finds the most specific
      * matching handler method by walking the exception's class hierarchy.
+     *
+     * @param ex the exception thrown by a handler method
+     * @return the resolved response, or {@code null} if no handler matches
      */
     public GeminiResponse resolve(Throwable ex) {
         Class<?> exClass = ex.getClass();
@@ -71,6 +76,8 @@ public final class ExceptionResolver {
 
     /**
      * Returns a no-op resolver that always returns null (no match).
+     *
+     * @return an empty resolver
      */
     public static ExceptionResolver none() {
         return new ExceptionResolver(new Object());

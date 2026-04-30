@@ -38,6 +38,14 @@ public final class GembootServerEngine {
     private final ExceptionResolver exceptionResolver;
     private final GembootConfig config;
 
+    /**
+     * Creates the engine that runs the Gemini request pipeline.
+     *
+     * @param routeRegistry the registry of dynamic routes
+     * @param certificateManager the TLS certificate provider
+     * @param exceptionResolver the resolver for handler exceptions
+     * @param config the server configuration
+     */
     public GembootServerEngine(RouteRegistry routeRegistry, CertificateManager certificateManager,
                               ExceptionResolver exceptionResolver, GembootConfig config) {
         this.routeRegistry = routeRegistry;
@@ -57,6 +65,8 @@ public final class GembootServerEngine {
 
     /**
      * Starts the server and returns the handle for programmatic shutdown.
+     *
+     * @return the disposable server handle
      */
     public DisposableServer startNonBlocking() {
         DisposableServer server = createServer();
@@ -147,7 +157,7 @@ public final class GembootServerEngine {
             path = "/";
         }
 
-        GeminiResponse staticResponse = StaticResourceResolver.resolve(path);
+        GeminiResponse staticResponse = StaticResourceResolver.resolve(path, config.staticDirectories());
         if (staticResponse != null) {
             return staticResponse;
         }

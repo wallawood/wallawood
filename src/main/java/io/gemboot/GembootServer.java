@@ -45,7 +45,7 @@ public final class GembootServer {
     private final DisposableServer server;
     private final GembootConfig config;
 
-    private static final Path DEFAULT_PROPERTIES = Path.of("gemboot.properties");
+    private static final Path DEFAULT_PROPERTIES = Path.of("application.properties");
 
     private GembootServer(DisposableServer server, GembootConfig config) {
         this.server = server;
@@ -127,6 +127,8 @@ public final class GembootServer {
 
     /**
      * Returns the port the server is listening on.
+     *
+     * @return the bound port
      */
     public int port() {
         return server.port();
@@ -134,13 +136,15 @@ public final class GembootServer {
 
     /**
      * Returns the server configuration.
+     *
+     * @return the config
      */
     public GembootConfig config() {
         return config;
     }
 
     /**
-     * Loads {@code gemboot.properties} from the working directory if it exists,
+     * Loads {@code application.properties} from the working directory if it exists,
      * otherwise falls back to {@link GembootConfig#defaults()}. If the file exists
      * but cannot be parsed, the error propagates — a broken config file should
      * never silently fall back to defaults.

@@ -28,6 +28,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface RequireSensitiveInput {
-    /** The prompt text displayed to the user. */
+    /** The prompt text displayed to the user.
+     * @return the prompt string */
     String value();
 }

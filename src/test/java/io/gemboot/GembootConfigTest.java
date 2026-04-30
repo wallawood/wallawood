@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,6 +23,7 @@ class GembootConfigTest {
         assertEquals(1965, config.port());
         assertNull(config.certPath());
         assertNull(config.keyPath());
+        assertTrue(config.staticDirectories().isEmpty());
     }
 
     @Test
@@ -33,12 +35,14 @@ class GembootConfigTest {
                 .hostname("example.com")
                 .port(1966)
                 .certificate(cert, key)
+                .staticDirectories(List.of("classpath:/public", "file:./content"))
                 .build();
 
         assertEquals("example.com", config.hostname());
         assertEquals(1966, config.port());
         assertEquals(cert, config.certPath());
         assertEquals(key, config.keyPath());
+        assertEquals(List.of("classpath:/public", "file:./content"), config.staticDirectories());
     }
 
     @Test
@@ -50,6 +54,7 @@ class GembootConfigTest {
         assertEquals(fromDefaults.port(), fromBuilder.port());
         assertEquals(fromDefaults.certPath(), fromBuilder.certPath());
         assertEquals(fromDefaults.keyPath(), fromBuilder.keyPath());
+        assertEquals(fromDefaults.staticDirectories(), fromBuilder.staticDirectories());
     }
 
     @Test
@@ -70,7 +75,7 @@ class GembootConfigTest {
 
     @Test
     void fromPropertiesWithAllValues() throws IOException {
-        Path propsFile = tempDir.resolve("gemboot.properties");
+        Path propsFile = tempDir.resolve("application.properties");
         Files.writeString(propsFile, """
                 gemboot.hostname=example.com
                 gemboot.port=1966
@@ -88,7 +93,7 @@ class GembootConfigTest {
 
     @Test
     void fromPropertiesWithDefaults() throws IOException {
-        Path propsFile = tempDir.resolve("gemboot.properties");
+        Path propsFile = tempDir.resolve("application.properties");
         Files.writeString(propsFile, "");
 
         GembootConfig config = GembootConfig.fromProperties(propsFile);
@@ -97,11 +102,12 @@ class GembootConfigTest {
         assertEquals(1965, config.port());
         assertNull(config.certPath());
         assertNull(config.keyPath());
+        assertTrue(config.staticDirectories().isEmpty());
     }
 
     @Test
     void fromPropertiesPartialOverride() throws IOException {
-        Path propsFile = tempDir.resolve("gemboot.properties");
+        Path propsFile = tempDir.resolve("application.properties");
         Files.writeString(propsFile, "gemboot.hostname=myhost.com\n");
 
         GembootConfig config = GembootConfig.fromProperties(propsFile);
@@ -112,7 +118,7 @@ class GembootConfigTest {
 
     @Test
     void fromPropertiesRejectsCertWithoutKey() throws IOException {
-        Path propsFile = tempDir.resolve("gemboot.properties");
+        Path propsFile = tempDir.resolve("application.properties");
         Files.writeString(propsFile, "gemboot.cert.path=/cert.pem\n");
 
         assertThrows(IllegalArgumentException.class,
@@ -121,7 +127,7 @@ class GembootConfigTest {
 
     @Test
     void fromPropertiesRejectsKeyWithoutCert() throws IOException {
-        Path propsFile = tempDir.resolve("gemboot.properties");
+        Path propsFile = tempDir.resolve("application.properties");
         Files.writeString(propsFile, "gemboot.key.path=/key.pem\n");
 
         assertThrows(IllegalArgumentException.class,
@@ -141,5 +147,45 @@ class GembootConfigTest {
         assertEquals(1966, config.port());
         assertNull(config.certPath());
         assertNull(config.keyPath());
+    }
+
+    @Test
+    void fromPropertiesParsesStaticDirectories() throws IOException {
+        Path propsFile = tempDir.resolve("application.properties");
+        Files.writeString(propsFile, "gemboot.static-directories=classpath:/public,file:./content\n");
+
+        GembootConfig config = GembootConfig.fromProperties(propsFile);
+
+        assertEquals(List.of("classpath:/public", "file:./content"), config.staticDirectories());
+    }
+
+    @Test
+    void fromPropertiesParsesStaticDirectoriesWithSpaces() throws IOException {
+        Path propsFile = tempDir.resolve("application.properties");
+        Files.writeString(propsFile, "gemboot.static-directories= classpath:/public , file:./content \n");
+
+        GembootConfig config = GembootConfig.fromProperties(propsFile);
+
+        assertEquals(List.of("classpath:/public", "file:./content"), config.staticDirectories());
+    }
+
+    @Test
+    void fromPropertiesEmptyStaticDirectories() throws IOException {
+        Path propsFile = tempDir.resolve("application.properties");
+        Files.writeString(propsFile, "gemboot.static-directories=\n");
+
+        GembootConfig config = GembootConfig.fromProperties(propsFile);
+
+        assertTrue(config.staticDirectories().isEmpty());
+    }
+
+    @Test
+    void staticDirectoriesListIsUnmodifiable() {
+        GembootConfig config = GembootConfig.builder()
+                .staticDirectories(List.of("classpath:/public"))
+                .build();
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> config.staticDirectories().add("classpath:/other"));
     }
 }

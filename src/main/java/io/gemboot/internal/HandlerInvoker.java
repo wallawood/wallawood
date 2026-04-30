@@ -43,6 +43,7 @@ public final class HandlerInvoker {
      * @param matched the matched route with path variables
      * @param requestUri the full request URI
      * @param clientCert the client's TLS certificate, or {@code null} if not provided
+     * @param exceptionResolver the resolver for mapping handler exceptions to responses
      * @return the response from the handler, or an error response
      */
     public static GeminiResponse invoke(RouteRegistry.MatchedRoute matched, URI requestUri,

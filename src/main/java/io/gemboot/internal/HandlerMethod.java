@@ -4,22 +4,9 @@ import java.lang.reflect.Method;
 
 /**
  * An immutable reference to a controller instance and one of its handler methods.
+ *
+ * @param controller the controller instance that owns the method
+ * @param method the reflective handle to the handler method
  */
-public final class HandlerMethod {
-
-    private final Object controller;
-    private final Method method;
-
-    public HandlerMethod(Object controller, Method method) {
-        this.controller = controller;
-        this.method = method;
-    }
-
-    public Object controller() {
-        return controller;
-    }
-
-    public Method method() {
-        return method;
-    }
+public record HandlerMethod(Object controller, Method method) {
 }

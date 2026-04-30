@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -23,12 +27,13 @@ import java.util.Properties;
  *     .hostname("example.com")
  *     .port(1965)
  *     .certificate(Path.of("cert.pem"), Path.of("key.pem"))
+ *     .staticDirectories(List.of("classpath:/public", "file:./content"))
  *     .build();
  * }</pre>
  *
  * <p>File-based configuration via properties:
  * <pre>{@code
- * GembootConfig config = GembootConfig.fromProperties(Path.of("gemboot.properties"));
+ * GembootConfig config = GembootConfig.fromProperties(Path.of("application.properties"));
  * }</pre>
  *
  * <p>Supported properties:
@@ -38,6 +43,9 @@ import java.util.Properties;
  *   <li>{@code gemboot.port} — listening port (default: {@code 1965})</li>
  *   <li>{@code gemboot.cert.path} — path to certificate PEM file (optional)</li>
  *   <li>{@code gemboot.key.path} — path to private key PEM file (optional, required if cert.path is set)</li>
+ *   <li>{@code gemboot.static-directories} — comma-separated list of additional static resource directories
+ *       using {@code classpath:} or {@code file:} prefixes (e.g. {@code classpath:/public,file:./content}).
+ *       The built-in {@code classpath:/static} is always resolved first.</li>
  * </ul>
  */
 public final class GembootConfig {
@@ -51,13 +59,16 @@ public final class GembootConfig {
     private final int port;
     private final Path certPath;
     private final Path keyPath;
+    private final List<String> staticDirectories;
 
-    private GembootConfig(String hostname, String bindAddress, int port, Path certPath, Path keyPath) {
+    private GembootConfig(String hostname, String bindAddress, int port, Path certPath, Path keyPath,
+                          List<String> staticDirectories) {
         this.hostname = hostname;
         this.bindAddress = bindAddress;
         this.port = port;
         this.certPath = certPath;
         this.keyPath = keyPath;
+        this.staticDirectories = Collections.unmodifiableList(staticDirectories);
     }
 
     /**
@@ -67,7 +78,7 @@ public final class GembootConfig {
      * @return the default configuration
      */
     public static GembootConfig defaults() {
-        return new GembootConfig(DEFAULT_HOSTNAME, DEFAULT_BIND_ADDRESS, DEFAULT_PORT, null, null);
+        return new GembootConfig(DEFAULT_HOSTNAME, DEFAULT_BIND_ADDRESS, DEFAULT_PORT, null, null, List.of());
     }
 
     /**
@@ -80,14 +91,14 @@ public final class GembootConfig {
     }
 
     /**
-     * Loads configuration from {@code gemboot.properties} in the working directory.
+     * Loads configuration from {@code application.properties} in the working directory.
      *
-     * @return a configuration loaded from {@code gemboot.properties}
+     * @return a configuration loaded from {@code application.properties}
      * @throws IllegalArgumentException if the file cannot be read or cert/key paths are inconsistent
      * @see #fromProperties(Path)
      */
     public static GembootConfig fromProperties() {
-        return fromProperties(Path.of("gemboot.properties"));
+        return fromProperties(Path.of("application.properties"));
     }
 
     /**
@@ -120,34 +131,62 @@ public final class GembootConfig {
             throw new IllegalArgumentException("Both gemboot.cert.path and gemboot.key.path must be set, or neither");
         }
 
-        return new GembootConfig(hostname, bindAddress, port, certPath, keyPath);
+        List<String> staticDirs = parseStaticDirectories(props.getProperty("gemboot.static-directories"));
+
+        return new GembootConfig(hostname, bindAddress, port, certPath, keyPath, staticDirs);
     }
 
-    /** Server hostname for TLS SNI and certificate CN. */
+    private static List<String> parseStaticDirectories(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    /** Server hostname for TLS SNI and certificate CN.
+     * @return the hostname */
     public String hostname() {
         return hostname;
     }
 
-    /** Address to bind the server socket to. Defaults to {@code 0.0.0.0} (all interfaces). */
+    /** Address to bind the server socket to. Defaults to {@code 0.0.0.0} (all interfaces).
+     * @return the bind address */
     public String bindAddress() {
         return bindAddress;
     }
 
-    /** Listening port. Gemini default is 1965. */
+    /** Listening port. Gemini default is 1965.
+     * @return the port number */
     public int port() {
         return port;
     }
 
-    /** Path to the certificate PEM file, or {@code null} for auto-generation. */
+    /** Path to the certificate PEM file, or {@code null} for auto-generation.
+     * @return the certificate path, or {@code null} */
     public Path certPath() {
         return certPath;
     }
 
-    /** Path to the private key PEM file, or {@code null} for auto-generation. */
+    /** Path to the private key PEM file, or {@code null} for auto-generation.
+     * @return the key path, or {@code null} */
     public Path keyPath() {
         return keyPath;
     }
 
+    /**
+     * Additional static resource directories to search after the built-in {@code classpath:/static}.
+     * Each entry uses a {@code classpath:} or {@code file:} prefix.
+     *
+     * @return an unmodifiable list of static directory locations
+     */
+    public List<String> staticDirectories() {
+        return staticDirectories;
+    }
+
+    /** Builder for constructing a {@link GembootConfig} with custom values. */
     public static final class Builder {
 
         private String hostname = DEFAULT_HOSTNAME;
@@ -155,6 +194,7 @@ public final class GembootConfig {
         private int port = DEFAULT_PORT;
         private Path certPath;
         private Path keyPath;
+        private List<String> staticDirectories = new ArrayList<>();
 
         private Builder() {
         }
@@ -209,6 +249,19 @@ public final class GembootConfig {
         }
 
         /**
+         * Sets additional static resource directories to search after the built-in
+         * {@code classpath:/static}. Each entry should use a {@code classpath:} or
+         * {@code file:} prefix (e.g. {@code classpath:/public}, {@code file:./content}).
+         *
+         * @param staticDirectories the ordered list of additional static directories
+         * @return this builder
+         */
+        public Builder staticDirectories(List<String> staticDirectories) {
+            this.staticDirectories = new ArrayList<>(staticDirectories);
+            return this;
+        }
+
+        /**
          * Builds the configuration.
          *
          * @return an immutable {@link GembootConfig}
@@ -218,7 +271,7 @@ public final class GembootConfig {
             if ((certPath == null) != (keyPath == null)) {
                 throw new IllegalArgumentException("Both certPath and keyPath must be set, or neither");
             }
-            return new GembootConfig(hostname, bindAddress, port, certPath, keyPath);
+            return new GembootConfig(hostname, bindAddress, port, certPath, keyPath, staticDirectories);
         }
     }
 }

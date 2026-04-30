@@ -10,6 +10,12 @@ version = '0.1.0-SNAPSHOT'
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add('-parameters')
 }
 
 repositories {
@@ -46,13 +52,27 @@ publishing {
     publications {
         shadow(MavenPublication) {
             artifact shadowJar
+            artifact sourcesJar
+            artifact javadocJar
             pom {
                 name = 'Gemboot Server'
                 description = 'A Java library for building Gemini protocol servers'
+                withXml {
+                    def deps = asNode().appendNode('dependencies')
+                    configurations.api.allDependencies.each { dep ->
+                        def node = deps.appendNode('dependency')
+                        node.appendNode('groupId', dep.group)
+                        node.appendNode('artifactId', dep.name)
+                        node.appendNode('version', dep.version)
+                        node.appendNode('scope', 'compile')
+                    }
+                }
             }
         }
     }
 }
+
+jar.enabled = false
 
 tasks.build {
     dependsOn shadowJar

@@ -46,6 +46,8 @@ public final class RouteRegistry {
 
     /**
      * Returns all registered routes.
+     *
+     * @return an unmodifiable map of path patterns to handler methods
      */
     public Map<PathPattern, HandlerMethod> routes() {
         return routes;
@@ -53,6 +55,9 @@ public final class RouteRegistry {
 
     /**
      * A matched route with extracted path variables.
+     *
+     * @param handler the handler method that matched the request path
+     * @param pathVariables the path variables extracted from the URI (e.g. {@code {id} → "42"})
      */
     public record MatchedRoute(HandlerMethod handler, Map<String, String> pathVariables) {
     }

@@ -1,11 +1,20 @@
 package io.gemboot.internal;
 
-import org.junit.jupiter.api.Test;
 import io.gemboot.GeminiResponse;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class StaticResourceResolverTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void servesGemtextFile() {
@@ -119,5 +128,119 @@ class StaticResourceResolverTest {
     @Test
     void guessMimeTypeFallsBackToOctetStream() {
         assertEquals("application/octet-stream", StaticResourceResolver.guessMimeType("data.xyz123"));
+    }
+
+    @Test
+    void servesFromFileDirectory() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Files.createDirectories(contentDir);
+        Files.writeString(contentDir.resolve("page.gmi"), "# File Page");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/page.gmi", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertEquals(20, r.status());
+        assertEquals("# File Page", new String(r.body()));
+    }
+
+    @Test
+    void classpathStaticTakesPrecedenceOverUserDirectories() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Files.createDirectories(contentDir.resolve("docs"));
+        Files.writeString(contentDir.resolve("docs/guide.gmi"), "# Overridden Guide");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/docs/guide.gmi", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertTrue(new String(r.body()).contains("# Guide"));
+        assertFalse(new String(r.body()).contains("Overridden"));
+    }
+
+    @Test
+    void fileDirectoryServesWhenClasspathMisses() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Files.createDirectories(contentDir);
+        Files.writeString(contentDir.resolve("custom.gmi"), "# Custom");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/custom.gmi", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertEquals("# Custom", new String(r.body()));
+    }
+
+    @Test
+    void firstDirectoryWinsInOrderedList() throws IOException {
+        Path dir1 = tempDir.resolve("dir1");
+        Path dir2 = tempDir.resolve("dir2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+        Files.writeString(dir1.resolve("page.gmi"), "# From Dir1");
+        Files.writeString(dir2.resolve("page.gmi"), "# From Dir2");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/page.gmi",
+                List.of("file:" + dir1, "file:" + dir2));
+        assertNotNull(r);
+        assertEquals("# From Dir1", new String(r.body()));
+    }
+
+    @Test
+    void fallsToSecondDirectoryWhenFirstMisses() throws IOException {
+        Path dir1 = tempDir.resolve("dir1");
+        Path dir2 = tempDir.resolve("dir2");
+        Files.createDirectories(dir1);
+        Files.createDirectories(dir2);
+        Files.writeString(dir2.resolve("page.gmi"), "# From Dir2");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/page.gmi",
+                List.of("file:" + dir1, "file:" + dir2));
+        assertNotNull(r);
+        assertEquals("# From Dir2", new String(r.body()));
+    }
+
+    @Test
+    void fileDirectoryServesIndexGmi() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Path subDir = contentDir.resolve("section");
+        Files.createDirectories(subDir);
+        Files.writeString(subDir.resolve("index.gmi"), "# Section Index");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/section/", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertEquals("# Section Index", new String(r.body()));
+    }
+
+    @Test
+    void fileDirectoryServesGmiExtensionFallback() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Files.createDirectories(contentDir);
+        Files.writeString(contentDir.resolve("about.gmi"), "# About");
+
+        GeminiResponse r = StaticResourceResolver.resolve("/about", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertEquals("# About", new String(r.body()));
+    }
+
+    @Test
+    void fileDirectoryRejectsPathTraversal() throws IOException {
+        Path contentDir = tempDir.resolve("content");
+        Files.createDirectories(contentDir);
+
+        GeminiResponse r = StaticResourceResolver.resolve("/../../../etc/passwd", List.of("file:" + contentDir));
+        assertNotNull(r);
+        assertEquals(59, r.status());
+    }
+
+    @Test
+    void classpathDirectoryServesFromUserClasspath() {
+        GeminiResponse r = StaticResourceResolver.resolve("/docs/guide.gmi", List.of("classpath:/static"));
+        assertNotNull(r);
+        assertEquals(20, r.status());
+        assertTrue(new String(r.body()).contains("# Guide"));
+    }
+
+    @Test
+    void returnsNullWhenNoDirectoryHasResource() throws IOException {
+        Path contentDir = tempDir.resolve("empty");
+        Files.createDirectories(contentDir);
+
+        GeminiResponse r = StaticResourceResolver.resolve("/missing.gmi", List.of("file:" + contentDir));
+        assertNull(r);
     }
 }
