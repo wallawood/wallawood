@@ -144,7 +144,7 @@ public final class GembootServer {
     /**
      * Loads {@code application.properties} from the working directory if it exists,
      * otherwise falls back to {@link GembootConfig#defaults()}. If the file exists
-     * but cannot be parsed, the error propagates — a broken config file should
+     * but cannot be parsed, the error propagates — a broken config file will
      * never silently fall back to defaults.
      */
     private static GembootConfig resolveConfig() {

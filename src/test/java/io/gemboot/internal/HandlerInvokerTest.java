@@ -1,10 +1,10 @@
 package io.gemboot.internal;
 
-import jakarta.ws.rs.DefaultValue;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.Context;
+import io.gemboot.annotations.DefaultValue;
+import io.gemboot.annotations.Path;
+import io.gemboot.annotations.PathParam;
+import io.gemboot.annotations.QueryParam;
+import io.gemboot.annotations.Context;
 import org.junit.jupiter.api.Test;
 import io.gemboot.annotations.GeminiController;
 import io.gemboot.GeminiResponse;

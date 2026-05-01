@@ -1,6 +1,6 @@
 package io.gemboot.internal.fixtures;
 
-import jakarta.ws.rs.Path;
+import io.gemboot.annotations.Path;
 import io.gemboot.annotations.GeminiController;
 import io.gemboot.GeminiResponse;
 

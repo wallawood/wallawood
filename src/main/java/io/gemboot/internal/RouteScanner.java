@@ -1,6 +1,5 @@
 package io.gemboot.internal;
 
-import jakarta.ws.rs.Path;
 import io.gemboot.annotations.GeminiController;
 import io.gemboot.annotations.GeminiExceptionHandler;
 import io.gemboot.GeminiResponse;
@@ -86,18 +85,18 @@ public final class RouteScanner {
         }
 
         String classPath = "";
-        Path classPathAnnotation = clazz.getAnnotation(Path.class);
-        if (classPathAnnotation != null) {
-            classPath = normalize(classPathAnnotation.value());
+        String classPathValue = AnnotationSupport.findPath(clazz);
+        if (classPathValue != null) {
+            classPath = normalize(classPathValue);
         }
 
         for (Method method : clazz.getDeclaredMethods()) {
-            Path methodPath = method.getAnnotation(Path.class);
-            if (methodPath == null) {
+            String methodPathValue = AnnotationSupport.findPath(method);
+            if (methodPathValue == null) {
                 continue;
             }
 
-            String fullPath = classPath + normalize(methodPath.value());
+            String fullPath = classPath + normalize(methodPathValue);
             if (fullPath.isEmpty()) {
                 fullPath = "/";
             }

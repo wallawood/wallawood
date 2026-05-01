@@ -1,9 +1,5 @@
 package io.gemboot.internal;
 
-import jakarta.ws.rs.DefaultValue;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.Context;
 import io.gemboot.GeminiResponse;
 import io.gemboot.annotations.QueryString;
 import io.gemboot.annotations.RequireCertificate;
@@ -23,9 +19,12 @@ import java.util.Map;
 
 /**
  * Resolves handler method parameters and invokes the handler. Supports
- * {@link PathParam @PathParam}, {@link QueryParam @QueryParam},
- * {@link DefaultValue @DefaultValue}, {@link Context @Context},
+ * {@link io.gemboot.annotations.PathParam @PathParam},
+ * {@link io.gemboot.annotations.QueryParam @QueryParam},
+ * {@link io.gemboot.annotations.DefaultValue @DefaultValue},
+ * {@link io.gemboot.annotations.Context @Context},
  * and {@link RequireCertificate @RequireCertificate}.
+ * Both {@code io.gemboot.annotations} and {@code jakarta.ws.rs} variants are accepted.
  *
  * <p>Handler methods must return {@link GeminiResponse}. Any other return type
  * is treated as an error.
@@ -118,17 +117,17 @@ public final class HandlerInvoker {
         for (int i = 0; i < params.length; i++) {
             Parameter param = params[i];
 
-            PathParam pathParam = param.getAnnotation(PathParam.class);
-            if (pathParam != null) {
-                String value = pathVars.get(pathParam.value());
+            String pathParamName = AnnotationSupport.findPathParam(param);
+            if (pathParamName != null) {
+                String value = pathVars.get(pathParamName);
                 String resolved = applyDefault(value, param);
                 args[i] = convert(resolved, param.getType());
                 continue;
             }
 
-            QueryParam queryParam = param.getAnnotation(QueryParam.class);
-            if (queryParam != null) {
-                String value = queryParams.get(queryParam.value());
+            String queryParamName = AnnotationSupport.findQueryParam(param);
+            if (queryParamName != null) {
+                String value = queryParams.get(queryParamName);
                 String resolved = applyDefault(value, param);
                 args[i] = convert(resolved, param.getType());
                 continue;
@@ -140,7 +139,7 @@ public final class HandlerInvoker {
                 continue;
             }
 
-            if (param.isAnnotationPresent(Context.class)) {
+            if (AnnotationSupport.hasContext(param)) {
                 if (param.getType().isAssignableFrom(URI.class)) {
                     args[i] = requestUri;
                 } else if (param.getType().isAssignableFrom(X509Certificate.class)) {
@@ -195,8 +194,8 @@ public final class HandlerInvoker {
         if (value != null) {
             return value;
         }
-        DefaultValue defaultValue = param.getAnnotation(DefaultValue.class);
-        return defaultValue != null ? defaultValue.value() : null;
+        String defaultValue = AnnotationSupport.findDefaultValue(param);
+        return defaultValue;
     }
 
     private static Map<String, String> parseQuery(URI uri) {

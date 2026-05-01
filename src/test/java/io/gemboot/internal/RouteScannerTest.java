@@ -1,6 +1,6 @@
 package io.gemboot.internal;
 
-import jakarta.ws.rs.Path;
+import io.gemboot.annotations.Path;
 import org.junit.jupiter.api.Test;
 import io.gemboot.annotations.GeminiController;
 import io.gemboot.internal.fixtures.RootController;

@@ -20,7 +20,7 @@ class ExceptionResolverTest {
             return GeminiResponse.temporaryFailure("Runtime: " + e.getMessage());
         }
 
-        public GeminiResponse handle(Exception e) {
+        public GeminiResponse handle(Exception ignored) {
             return GeminiResponse.permanentFailure("Catch-all");
         }
     }
@@ -73,7 +73,7 @@ class ExceptionResolverTest {
 
     @GeminiController
     static class ThrowingController {
-        @jakarta.ws.rs.Path("/boom")
+        @io.gemboot.annotations.Path("/boom")
         public GeminiResponse boom() {
             throw new RuntimeException("kaboom");
         }
