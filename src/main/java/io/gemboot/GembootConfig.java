@@ -1,5 +1,6 @@
 package io.gemboot;
 
+import io.gemboot.internal.AccessLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,7 +116,7 @@ public final class GembootConfig {
      * @throws IllegalArgumentException if the file cannot be read or cert/key paths are inconsistent
      */
     public static GembootConfig fromProperties(Path path) {
-        log.info("Loading properties from path {}", path);
+        AccessLog.log("Loading properties from {}...", path);
         Properties props = new Properties();
         try (InputStream in = Files.newInputStream(path)) {
             props.load(in);
@@ -138,7 +139,20 @@ public final class GembootConfig {
 
         List<String> staticDirs = parseStaticDirectories(props.getProperty("gemboot.static.directories"));
 
-        return new GembootConfig(hostname, bindAddress, port, certPath, keyPath, staticDirs);
+        var config = new GembootConfig(hostname, bindAddress, port, certPath, keyPath, staticDirs);
+        config.logProperties();
+        return config;
+    }
+
+    private void logProperties() {
+        AccessLog.log("gemboot.hostname={}", hostname);
+        AccessLog.log("gemboot.bind-address={}", bindAddress);
+        AccessLog.log("gemboot.port={}", port);
+        AccessLog.log("gemboot.cert.path={}", certPath != null ? certPath : "auto");
+        AccessLog.log("gemboot.key.path={}", keyPath != null ? keyPath : "auto");
+        if (!staticDirectories.isEmpty()) {
+            AccessLog.log("gemboot.static.directories={}", String.join(",", staticDirectories));
+        }
     }
 
     private static List<String> parseStaticDirectories(String value) {

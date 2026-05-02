@@ -93,4 +93,16 @@ class RouteScannerTest {
         assertThrows(IllegalStateException.class,
                 () -> RouteScanner.registerController(new RootController(), routes));
     }
+
+    @Test
+    void constructorInjectionResolvesComponents() {
+        ScanResult result = RouteScanner.scan("io.gemboot.internal.difixtures");
+        assertNotNull(result.routeRegistry().match("/greet"));
+    }
+
+    @Test
+    void circularDependencyFailsFast() {
+        assertThrows(IllegalStateException.class,
+                () -> RouteScanner.scan("io.gemboot.internal.circularfixtures"));
+    }
 }

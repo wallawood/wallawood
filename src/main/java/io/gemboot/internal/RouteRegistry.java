@@ -24,7 +24,11 @@ public final class RouteRegistry {
         for (var entry : rawRoutes.entrySet()) {
             parsed.put(parser.parse(entry.getKey()), entry.getValue());
         }
-        this.routes = Collections.unmodifiableMap(parsed);
+        var sorted = new LinkedHashMap<PathPattern, HandlerMethod>();
+        parsed.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> sorted.put(e.getKey(), e.getValue()));
+        this.routes = Collections.unmodifiableMap(sorted);
     }
 
     /**

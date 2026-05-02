@@ -10,10 +10,8 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -30,7 +28,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
-import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
@@ -110,10 +107,8 @@ public final class CertificateManager {
         try {
             Files.createDirectories(directory);
 
-            Security.addProvider(new BouncyCastleProvider());
-
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("ECDSA", "BC");
-            keyGen.initialize(new ECGenParameterSpec("prime256v1"));
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
+            keyGen.initialize(new ECGenParameterSpec("secp256r1"));
             KeyPair keyPair = keyGen.generateKeyPair();
 
             Instant now = Instant.now();
@@ -121,7 +116,6 @@ public final class CertificateManager {
             BigInteger serial = BigInteger.valueOf(now.toEpochMilli());
 
             ContentSigner signer = new JcaContentSignerBuilder("SHA256withECDSA")
-                    .setProvider("BC")
                     .build(keyPair.getPrivate());
 
             X509CertificateHolder holder = new JcaX509v3CertificateBuilder(
@@ -134,11 +128,11 @@ public final class CertificateManager {
             ).build(signer);
 
             X509Certificate cert = new JcaX509CertificateConverter()
-                    .setProvider("BC")
                     .getCertificate(holder);
 
             writePem(certPath, cert);
-            writePem(keyPath, keyPair.getPrivate());
+            writePem(keyPath, new org.bouncycastle.openssl.PKCS8Generator(
+                    PrivateKeyInfo.getInstance(keyPair.getPrivate().getEncoded()), null));
             restrictPermissions(keyPath);
 
             log.debug("Generated self-signed certificate in {}", directory);
@@ -182,12 +176,13 @@ public final class CertificateManager {
         try (Reader reader = Files.newBufferedReader(path);
              PEMParser parser = new PEMParser(reader)) {
             Object obj = parser.readObject();
-            JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
             if (obj instanceof PEMKeyPair keyPair) {
-                return converter.getKeyPair(keyPair).getPrivate();
+                obj = keyPair.getPrivateKeyInfo();
             }
             if (obj instanceof PrivateKeyInfo keyInfo) {
-                return converter.getPrivateKey(keyInfo);
+                java.security.spec.PKCS8EncodedKeySpec spec =
+                        new java.security.spec.PKCS8EncodedKeySpec(keyInfo.getEncoded());
+                return java.security.KeyFactory.getInstance("EC").generatePrivate(spec);
             }
             throw new IllegalArgumentException("Not a valid private key: " + path);
         }

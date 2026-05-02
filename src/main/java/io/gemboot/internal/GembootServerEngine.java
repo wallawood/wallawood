@@ -1,5 +1,8 @@
 package io.gemboot.internal;
 
+import io.gemboot.GeminiResponse;
+import io.gemboot.RequestContext;
+import io.gemboot.RequestInterceptor;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
@@ -20,6 +23,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The Reactor Netty engine that listens for Gemini requests over TLS,
@@ -36,6 +41,7 @@ public final class GembootServerEngine {
     private final RouteRegistry routeRegistry;
     private final CertificateManager certificateManager;
     private final ExceptionResolver exceptionResolver;
+    private final List<RequestInterceptor> interceptors;
     private final GembootConfig config;
 
     /**
@@ -44,13 +50,16 @@ public final class GembootServerEngine {
      * @param routeRegistry the registry of dynamic routes
      * @param certificateManager the TLS certificate provider
      * @param exceptionResolver the resolver for handler exceptions
+     * @param interceptors the ordered list of request interceptors
      * @param config the server configuration
      */
     public GembootServerEngine(RouteRegistry routeRegistry, CertificateManager certificateManager,
-                              ExceptionResolver exceptionResolver, GembootConfig config) {
+                              ExceptionResolver exceptionResolver, List<RequestInterceptor> interceptors,
+                              GembootConfig config) {
         this.routeRegistry = routeRegistry;
         this.certificateManager = certificateManager;
         this.exceptionResolver = exceptionResolver;
+        this.interceptors = interceptors;
         this.config = config;
     }
 
@@ -61,7 +70,7 @@ public final class GembootServerEngine {
      */
     public DisposableServer startNonBlocking() {
         DisposableServer server = createServer();
-        log.info("Gemini server listening on {}:{}", config.hostname(), config.port());
+        AccessLog.log("✨ 💎 Gemini server listening on {}:{} 💎 ✨", config.hostname(), config.port());
         return server;
     }
 
@@ -148,6 +157,18 @@ public final class GembootServerEngine {
             path = "/";
         }
 
+        X509Certificate clientCert = extractClientCert(conn);
+        RequestContext requestContext = new RequestContext();
+        requestContext.add(uri);
+        if (clientCert != null) requestContext.add(X509Certificate.class, clientCert);
+
+        for (RequestInterceptor interceptor : interceptors) {
+            Optional<GeminiResponse> result = interceptor.intercept(requestContext);
+            if (result.isPresent()) {
+                return result.get();
+            }
+        }
+
         GeminiResponse staticResponse = StaticResourceResolver.resolve(path, config.staticDirectories());
         if (staticResponse != null) {
             return staticResponse;
@@ -155,8 +176,7 @@ public final class GembootServerEngine {
 
         RouteRegistry.MatchedRoute matched = routeRegistry.match(path);
         if (matched != null) {
-            X509Certificate clientCert = extractClientCert(conn);
-            return HandlerInvoker.invoke(matched, uri, clientCert, exceptionResolver);
+            return HandlerInvoker.invoke(matched, requestContext, exceptionResolver);
         }
 
         return GeminiResponse.notFound();

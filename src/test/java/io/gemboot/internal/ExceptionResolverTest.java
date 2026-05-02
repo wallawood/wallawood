@@ -59,14 +59,14 @@ class ExceptionResolverTest {
     void handlerInvokerUsesResolver() throws Exception {
         var resolver = new ExceptionResolver(new TestErrorHandler());
 
-        // Create a controller with a method that throws
         var controller = new ThrowingController();
         var method = ThrowingController.class.getDeclaredMethod("boom");
         var handler = new HandlerMethod(controller, method);
         var matched = new RouteRegistry.MatchedRoute(handler, java.util.Map.of());
 
-        var result = HandlerInvoker.invoke(matched,
-                java.net.URI.create("gemini://localhost/boom"), null, resolver);
+        var ctx = new io.gemboot.RequestContext();
+        ctx.add(java.net.URI.create("gemini://localhost/boom"));
+        var result = HandlerInvoker.invoke(matched, ctx, resolver);
         assertEquals(40, result.status());
         assertTrue(result.meta().contains("Runtime: kaboom"));
     }

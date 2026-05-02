@@ -109,7 +109,8 @@ public final class GembootServer {
         }
 
         GembootServerEngine engine = new GembootServerEngine(
-                scanResult.routeRegistry(), certManager, scanResult.exceptionResolver(), config);
+                scanResult.routeRegistry(), certManager, scanResult.exceptionResolver(),
+                scanResult.interceptors(), config);
         DisposableServer server = engine.startNonBlocking();
 
         return new GembootServer(server, config);

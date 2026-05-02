@@ -69,6 +69,6 @@ class CertificateManagerTest {
         String keyContent = Files.readString(tempDir.resolve("certs/key.pem"));
 
         assertTrue(certContent.startsWith("-----BEGIN CERTIFICATE-----"));
-        assertTrue(keyContent.startsWith("-----BEGIN EC PRIVATE KEY-----"));
+        assertTrue(keyContent.startsWith("-----BEGIN PRIVATE KEY-----"));
     }
 }

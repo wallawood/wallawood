@@ -1,6 +1,10 @@
 package io.gemboot.internal;
 
 import io.gemboot.GeminiResponse;
+import io.gemboot.Authorization;
+import io.gemboot.Grant;
+import io.gemboot.RequestContext;
+import io.gemboot.annotations.Authorize;
 import io.gemboot.annotations.QueryString;
 import io.gemboot.annotations.RequireCertificate;
 import io.gemboot.annotations.RequireInput;
@@ -18,16 +22,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Resolves handler method parameters and invokes the handler. Supports
- * {@link io.gemboot.annotations.PathParam @PathParam},
- * {@link io.gemboot.annotations.QueryParam @QueryParam},
- * {@link io.gemboot.annotations.DefaultValue @DefaultValue},
- * {@link io.gemboot.annotations.Context @Context},
- * and {@link RequireCertificate @RequireCertificate}.
- * Both {@code io.gemboot.annotations} and {@code jakarta.ws.rs} variants are accepted.
+ * Resolves handler method parameters and invokes the handler. Pre-invocation
+ * checks run in order: {@link RequireCertificate @RequireCertificate},
+ * {@link Authorize @Authorize}, {@link RequireInput @RequireInput},
+ * {@link RequireSensitiveInput @RequireSensitiveInput}.
  *
- * <p>Handler methods must return {@link GeminiResponse}. Any other return type
- * is treated as an error.
+ * <p>Both {@code io.gemboot.annotations} and {@code jakarta.ws.rs} annotation
+ * variants are accepted for parameter binding.
+ *
+ * <p>Handler methods must return {@link GeminiResponse}.
  */
 public final class HandlerInvoker {
 
@@ -37,24 +40,32 @@ public final class HandlerInvoker {
     }
 
     /**
-     * Invokes the matched handler method, resolving parameters from the request.
+     * Invokes the matched handler method, resolving parameters from the
+     * {@link RequestContext}.
      *
      * @param matched the matched route with path variables
-     * @param requestUri the full request URI
-     * @param clientCert the client's TLS certificate, or {@code null} if not provided
+     * @param requestContext the request context containing URI, client cert, grant, etc.
      * @param exceptionResolver the resolver for mapping handler exceptions to responses
-     * @return the response from the handler, or an error response
+     * @return the response from the handler, or an error/auth response
      */
-    public static GeminiResponse invoke(RouteRegistry.MatchedRoute matched, URI requestUri,
-                                         X509Certificate clientCert, ExceptionResolver exceptionResolver) {
+    public static GeminiResponse invoke(RouteRegistry.MatchedRoute matched, RequestContext requestContext,
+                                         ExceptionResolver exceptionResolver) {
         HandlerMethod handler = matched.handler();
         Method method = handler.method();
+
+        X509Certificate clientCert = requestContext.get(X509Certificate.class);
+        URI requestUri = requestContext.get(URI.class);
 
         if (requiresCertificate(handler) && clientCert == null) {
             String message = getCertificateMessage(handler);
             return message.isEmpty()
                     ? GeminiResponse.clientCertificateRequired()
                     : GeminiResponse.clientCertificateRequired(message);
+        }
+
+        GeminiResponse authResponse = checkAuthorize(handler, requestContext);
+        if (authResponse != null) {
+            return authResponse;
         }
 
         String query = requestUri.getRawQuery();
@@ -71,7 +82,7 @@ public final class HandlerInvoker {
         }
 
         try {
-            Object[] args = resolveArgs(method, matched.pathVariables(), requestUri, clientCert);
+            Object[] args = resolveArgs(method, matched.pathVariables(), requestContext);
             return (GeminiResponse) method.invoke(handler.controller(), args);
         } catch (IllegalArgumentException e) {
             log.debug("Bad request to {}.{}: {}",
@@ -109,9 +120,37 @@ public final class HandlerInvoker {
         return "";
     }
 
-    private static Object[] resolveArgs(Method method, Map<String, String> pathVars, URI requestUri, X509Certificate clientCert) {
+    private static GeminiResponse checkAuthorize(HandlerMethod handler, RequestContext ctx) {
+        Authorize auth = handler.method().getAnnotation(Authorize.class);
+        if (auth == null) {
+            auth = handler.controller().getClass().getAnnotation(Authorize.class);
+        }
+        if (auth == null) {
+            return null;
+        }
+
+        X509Certificate cert = ctx.get(X509Certificate.class);
+        if (cert == null) {
+            return GeminiResponse.clientCertificateRequired(auth.message());
+        }
+
+        Grant grant = ctx.get(Grant.class);
+        Authorization authz = fromAnnotation(auth);
+        if (!authz.check(grant)) {
+            return GeminiResponse.certificateNotAuthorized(auth.message());
+        }
+
+        return null;
+    }
+
+    private static Authorization fromAnnotation(Authorize auth) {
+        return new Authorization(auth.level(), auth.scopes());
+    }
+
+    private static Object[] resolveArgs(Method method, Map<String, String> pathVars, RequestContext requestContext) {
         Parameter[] params = method.getParameters();
         Object[] args = new Object[params.length];
+        URI requestUri = requestContext.get(URI.class);
         Map<String, String> queryParams = parseQuery(requestUri);
 
         for (int i = 0; i < params.length; i++) {
@@ -140,11 +179,15 @@ public final class HandlerInvoker {
             }
 
             if (AnnotationSupport.hasContext(param)) {
-                if (param.getType().isAssignableFrom(URI.class)) {
-                    args[i] = requestUri;
-                } else if (param.getType().isAssignableFrom(X509Certificate.class)) {
-                    args[i] = clientCert;
-                } else {
+                boolean found = false;
+                for (var entry : requestContext.entrySet()) {
+                    if (param.getType().isAssignableFrom(entry.getKey())) {
+                        args[i] = entry.getValue();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
                     args[i] = null;
                 }
                 continue;
@@ -161,21 +204,11 @@ public final class HandlerInvoker {
             return type.isPrimitive() ? defaultPrimitive(type) : null;
         }
         try {
-            if (type == String.class) {
-                return value;
-            }
-            if (type == int.class || type == Integer.class) {
-                return Integer.parseInt(value);
-            }
-            if (type == long.class || type == Long.class) {
-                return Long.parseLong(value);
-            }
-            if (type == boolean.class || type == Boolean.class) {
-                return Boolean.parseBoolean(value);
-            }
-            if (type == double.class || type == Double.class) {
-                return Double.parseDouble(value);
-            }
+            if (type == String.class) return value;
+            if (type == int.class || type == Integer.class) return Integer.parseInt(value);
+            if (type == long.class || type == Long.class) return Long.parseLong(value);
+            if (type == boolean.class || type == Boolean.class) return Boolean.parseBoolean(value);
+            if (type == double.class || type == Double.class) return Double.parseDouble(value);
             return value;
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid value '" + value + "' for type " + type.getSimpleName());
@@ -191,11 +224,8 @@ public final class HandlerInvoker {
     }
 
     private static String applyDefault(String value, Parameter param) {
-        if (value != null) {
-            return value;
-        }
-        String defaultValue = AnnotationSupport.findDefaultValue(param);
-        return defaultValue;
+        if (value != null) return value;
+        return AnnotationSupport.findDefaultValue(param);
     }
 
     private static Map<String, String> parseQuery(URI uri) {
