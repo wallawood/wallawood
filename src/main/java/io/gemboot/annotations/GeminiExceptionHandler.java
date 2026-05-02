@@ -21,6 +21,10 @@ import java.lang.annotation.Target;
  * <p>Only one class may be annotated with {@code @GeminiExceptionHandler} per
  * application. The server will fail fast at startup if multiple are found.
  *
+ * <p><strong>Thread safety:</strong> Instances of this class are singletons shared across
+ * Reactor Netty's event loop threads. Implementations must be thread-safe — avoid mutable
+ * instance fields, or protect them with appropriate synchronization.
+ *
  * <pre>{@code
  * @GeminiExceptionHandler
  * public class ErrorHandler {

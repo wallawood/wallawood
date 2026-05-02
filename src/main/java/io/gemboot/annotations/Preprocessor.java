@@ -18,6 +18,10 @@ import java.lang.annotation.Target;
  * <p>When multiple preprocessors are registered, they execute in
  * {@link #priority()} order (lower runs first).
  *
+ * <p><strong>Thread safety:</strong> Instances of this class are singletons shared across
+ * Reactor Netty's event loop threads. Implementations must be thread-safe — avoid mutable
+ * instance fields, or protect them with appropriate synchronization.
+ *
  * @see io.gemboot.RequestInterceptor
  * @see io.gemboot.RequestContext
  */

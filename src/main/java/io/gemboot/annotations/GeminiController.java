@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * <p>An optional class-level {@link jakarta.ws.rs.Path @Path} may be used to define a
  * common prefix for all routes in the controller.
  *
- * <p><strong>Thread safety:</strong> Controller instances are singletons shared across
+ * <p><strong>Thread safety:</strong> Instances of this class are singletons shared across
  * Reactor Netty's event loop threads. Implementations must be thread-safe — avoid mutable
  * instance fields, or protect them with appropriate synchronization.
  *

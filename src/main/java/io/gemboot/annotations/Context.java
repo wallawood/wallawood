@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Injects request context into a handler method parameter. Supported types:
+ * Injects request context into a handler method parameter. Built-in types:
  *
  * <ul>
  *   <li>{@link java.net.URI} — the full request URI</li>
@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * <p>Equivalent to {@link jakarta.ws.rs.core.Context} — both are accepted.
+ *
+ * <p><strong>Thread safety:</strong> Instances of this class are singletons shared across
+ * Reactor Netty's event loop threads. Implementations must be thread-safe — avoid mutable
+ * instance fields, or protect them with appropriate synchronization.
  *
  * <pre>{@code
  * @Path("/whoami")
