@@ -105,4 +105,18 @@ class RouteScannerTest {
         assertThrows(IllegalStateException.class,
                 () -> RouteScanner.scan("io.gemboot.internal.circularfixtures"));
     }
+
+    @Test
+    void literalRoutesMatchBeforeParameterized() {
+        Map<String, HandlerMethod> routes = new LinkedHashMap<>();
+        // Register parameterized first to prove sorting fixes order
+        var controller = new RootController();
+        routes.put("/items/{id}", new HandlerMethod(controller, controller.getClass().getDeclaredMethods()[0]));
+        routes.put("/items/best", new HandlerMethod(controller, controller.getClass().getDeclaredMethods()[0]));
+
+        var registry = new RouteRegistry(routes);
+        var match = registry.match("/items/best");
+        assertNotNull(match);
+        assertTrue(match.pathVariables().isEmpty());
+    }
 }

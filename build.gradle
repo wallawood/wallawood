@@ -41,7 +41,11 @@ tasks.named('test') {
 }
 
 shadowJar {
-    minimize()
+    minimize {
+        exclude(dependency('io.netty:.*'))
+        exclude(dependency('io.projectreactor.netty:.*'))
+        exclude(dependency('io.projectreactor:.*'))
+    }
     relocate 'org.springframework', 'io.gemboot.internal.spring'
     relocate 'io.micrometer', 'io.gemboot.internal.micrometer'
     relocate 'org.bouncycastle', 'io.gemboot.internal.bouncycastle'

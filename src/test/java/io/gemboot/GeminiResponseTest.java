@@ -138,7 +138,7 @@ class GeminiResponseTest {
         var r = GeminiResponse.temporaryFailure();
         assertEquals(40, r.status());
         assertNull(r.meta());
-        assertEquals("40\r\n", toWireString(r));
+        assertEquals("40 \r\n", toWireString(r));
     }
 
     @Test
@@ -152,7 +152,7 @@ class GeminiResponseTest {
     void serverUnavailableWithoutMessage() {
         var r = GeminiResponse.serverUnavailable();
         assertEquals(41, r.status());
-        assertEquals("41\r\n", toWireString(r));
+        assertEquals("41 \r\n", toWireString(r));
     }
 
     @Test
@@ -166,7 +166,7 @@ class GeminiResponseTest {
     void cgiErrorWithoutMessage() {
         var r = GeminiResponse.cgiError();
         assertEquals(42, r.status());
-        assertEquals("42\r\n", toWireString(r));
+        assertEquals("42 \r\n", toWireString(r));
     }
 
     @Test
@@ -180,7 +180,7 @@ class GeminiResponseTest {
     void proxyErrorWithoutMessage() {
         var r = GeminiResponse.proxyError();
         assertEquals(43, r.status());
-        assertEquals("43\r\n", toWireString(r));
+        assertEquals("43 \r\n", toWireString(r));
     }
 
     @Test
@@ -194,7 +194,7 @@ class GeminiResponseTest {
     void slowDownWithoutMessage() {
         var r = GeminiResponse.slowDown();
         assertEquals(44, r.status());
-        assertEquals("44\r\n", toWireString(r));
+        assertEquals("44 \r\n", toWireString(r));
     }
 
     @Test
@@ -208,7 +208,7 @@ class GeminiResponseTest {
     void permanentFailureWithoutMessage() {
         var r = GeminiResponse.permanentFailure();
         assertEquals(50, r.status());
-        assertEquals("50\r\n", toWireString(r));
+        assertEquals("50 \r\n", toWireString(r));
     }
 
     @Test
@@ -222,7 +222,7 @@ class GeminiResponseTest {
     void notFoundWithoutMessage() {
         var r = GeminiResponse.notFound();
         assertEquals(51, r.status());
-        assertEquals("51\r\n", toWireString(r));
+        assertEquals("51 \r\n", toWireString(r));
     }
 
     @Test
@@ -236,7 +236,7 @@ class GeminiResponseTest {
     void goneWithoutMessage() {
         var r = GeminiResponse.gone();
         assertEquals(52, r.status());
-        assertEquals("52\r\n", toWireString(r));
+        assertEquals("52 \r\n", toWireString(r));
     }
 
     @Test
@@ -250,7 +250,7 @@ class GeminiResponseTest {
     void proxyRequestRefusedWithoutMessage() {
         var r = GeminiResponse.proxyRequestRefused();
         assertEquals(53, r.status());
-        assertEquals("53\r\n", toWireString(r));
+        assertEquals("53 \r\n", toWireString(r));
     }
 
     @Test
@@ -264,7 +264,7 @@ class GeminiResponseTest {
     void badRequestWithoutMessage() {
         var r = GeminiResponse.badRequest();
         assertEquals(59, r.status());
-        assertEquals("59\r\n", toWireString(r));
+        assertEquals("59 \r\n", toWireString(r));
     }
 
     @Test
@@ -278,7 +278,7 @@ class GeminiResponseTest {
     void clientCertificateRequiredWithoutMessage() {
         var r = GeminiResponse.clientCertificateRequired();
         assertEquals(60, r.status());
-        assertEquals("60\r\n", toWireString(r));
+        assertEquals("60 \r\n", toWireString(r));
     }
 
     @Test
@@ -292,7 +292,7 @@ class GeminiResponseTest {
     void certificateNotAuthorizedWithoutMessage() {
         var r = GeminiResponse.certificateNotAuthorized();
         assertEquals(61, r.status());
-        assertEquals("61\r\n", toWireString(r));
+        assertEquals("61 \r\n", toWireString(r));
     }
 
     @Test
@@ -306,7 +306,7 @@ class GeminiResponseTest {
     void certificateNotValidWithoutMessage() {
         var r = GeminiResponse.certificateNotValid();
         assertEquals(62, r.status());
-        assertEquals("62\r\n", toWireString(r));
+        assertEquals("62 \r\n", toWireString(r));
     }
 
     @Test
@@ -349,5 +349,27 @@ class GeminiResponseTest {
                 buf.release();
             }
         }
+    }
+
+    @Test
+    void customWithBody() {
+        var r = GeminiResponse.custom(21, "text/plain", "hi".getBytes(StandardCharsets.UTF_8));
+        assertEquals(21, r.status());
+        assertEquals("text/plain", r.meta());
+        assertEquals("21 text/plain\r\nhi", toWireString(r));
+    }
+
+    @Test
+    void customWithoutBody() {
+        var r = GeminiResponse.custom(45, "Rate limited", null);
+        assertEquals(45, r.status());
+        assertNull(r.body());
+        assertEquals("45 Rate limited\r\n", toWireString(r));
+    }
+
+    @Test
+    void customToStringOmitsReason() {
+        var r = GeminiResponse.custom(99, "custom meta", null);
+        assertEquals("<99,custom meta>", r.toString());
     }
 }

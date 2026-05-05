@@ -21,13 +21,37 @@ import java.nio.charset.StandardCharsets;
 public final class GeminiResponse {
 
     private final StatusCodes status;
+    private final int rawStatus;
     private final String meta;
     private final byte[] body;
 
     private GeminiResponse(StatusCodes status, String meta, byte[] body) {
         this.status = status;
+        this.rawStatus = status.code();
         this.meta = meta;
         this.body = body;
+    }
+
+    private GeminiResponse(int rawStatus, String meta, byte[] body) {
+        this.status = null;
+        this.rawStatus = rawStatus;
+        this.meta = meta;
+        this.body = body;
+    }
+
+    /**
+     * Creates a response with a custom status code, meta string, and optional body.
+     * Use this for application-specific status codes or non-standard responses
+     * not covered by the
+     * <a href="https://geminiprotocol.net/docs/protocol-specification.gmi">Gemini Protocol Specification</a>.
+     *
+     * @param status the two-digit status code
+     * @param meta the meta string (MIME type, prompt, redirect URI, or message)
+     * @param body the response body, or {@code null} for non-success responses
+     * @return a custom Gemini response
+     */
+    public static GeminiResponse custom(int status, String meta, byte[] body) {
+        return new GeminiResponse(status, meta, body);
     }
 
     /**
@@ -418,7 +442,7 @@ public final class GeminiResponse {
      * @return the status code (10–62)
      */
     public int status() {
-        return status.code();
+        return rawStatus;
     }
 
     /**
@@ -455,7 +479,10 @@ public final class GeminiResponse {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append('<').append(status.code()).append(' ').append(status.reason());
+        sb.append('<').append(rawStatus);
+        if (status != null) {
+            sb.append(' ').append(status.reason());
+        }
         if (meta != null) {
             sb.append(',').append(meta);
         }
@@ -479,8 +506,8 @@ public final class GeminiResponse {
      */
     public ByteBuf toByteBuf(ByteBufAllocator alloc) {
         String header = meta != null
-                ? status.code() + " " + meta + "\r\n"
-                : status.code() + "\r\n";
+                ? rawStatus + " " + meta + "\r\n"
+                : rawStatus + " \r\n";
         byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
         int bodyLen = body != null ? body.length : 0;
 
