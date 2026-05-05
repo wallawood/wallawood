@@ -7,54 +7,88 @@ import static org.junit.jupiter.api.Assertions.*;
 class AuthorizationTest {
 
     @Test
-    void levelPassesWhenSufficient() {
-        assertTrue(Authorization.level(3).check(Grant.at(3)));
-        assertTrue(Authorization.level(3).check(Grant.at(5)));
+    void requireClearancePassesWhenSufficient() {
+        assertTrue(Authorization.requireClearance(3).check(Grant.clearance(3)));
+        assertTrue(Authorization.requireClearance(3).check(Grant.clearance(5)));
     }
 
     @Test
-    void levelFailsWhenInsufficient() {
-        assertFalse(Authorization.level(3).check(Grant.at(2)));
+    void requireClearanceFailsWhenInsufficient() {
+        assertFalse(Authorization.requireClearance(3).check(Grant.clearance(2)));
     }
 
     @Test
-    void scopesPassesWhenAllPresent() {
-        assertTrue(Authorization.scopes("read").check(Grant.some("read", "write")));
-        assertTrue(Authorization.scopes("read", "write").check(Grant.some("read", "write", "admin")));
+    void requireScopesPassesWhenAllPresent() {
+        assertTrue(Authorization.requireScopes("read").check(Grant.scopes("read", "write")));
+        assertTrue(Authorization.requireScopes("read", "write").check(Grant.scopes("read", "write", "admin")));
     }
 
     @Test
-    void scopesFailsWhenMissing() {
-        assertFalse(Authorization.scopes("write").check(Grant.some("read")));
-        assertFalse(Authorization.scopes("read", "write").check(Grant.some("read")));
+    void requireScopesFailsWhenMissing() {
+        assertFalse(Authorization.requireScopes("write").check(Grant.scopes("read")));
+        assertFalse(Authorization.requireScopes("read", "write").check(Grant.scopes("read")));
     }
 
     @Test
-    void bothLevelAndScopesRequiresBoth() {
-        var auth = new Authorization(3, "write");
-        assertTrue(auth.check(Grant.all()));
-        assertFalse(auth.check(Grant.at(3)));           // level ok, no scopes
-        assertFalse(auth.check(Grant.some("write")));   // scopes ok, level -1
+    void requireAuthorizedPassesWhenAuthorized() {
+        assertTrue(Authorization.requireAuthorized().check(Grant.authorized()));
+    }
+
+    @Test
+    void requireAuthorizedFailsWhenNotAuthorized() {
+        assertFalse(Authorization.requireAuthorized().check(Grant.clearance(5)));
+        assertFalse(Authorization.requireAuthorized().check(Grant.scopes("admin")));
+        assertFalse(Authorization.requireAuthorized().check(Grant.none()));
+    }
+
+    @Test
+    void compositeRequiresBothClearanceAndScopes() {
+        var auth = Authorization.builder()
+                .requireClearance(3)
+                .requireScopes("write")
+                .build();
+        var full = Grant.builder().level(3).addScope("write").build();
+        assertTrue(auth.check(full));
+        assertFalse(auth.check(Grant.clearance(3)));
+        assertFalse(auth.check(Grant.scopes("write")));
+    }
+
+    @Test
+    void compositeAllThreeDimensions() {
+        var auth = Authorization.builder()
+                .requireAuthorized()
+                .requireClearance(2)
+                .requireScopes("admin")
+                .build();
+        var full = Grant.builder().authorized(true).level(2).addScope("admin").build();
+        assertTrue(auth.check(full));
+        assertFalse(auth.check(Grant.builder().level(2).addScope("admin").build()));
+        assertFalse(auth.check(Grant.builder().authorized(true).addScope("admin").build()));
+        assertFalse(auth.check(Grant.builder().authorized(true).level(2).build()));
     }
 
     @Test
     void nullGrantFails() {
-        assertFalse(Authorization.level(1).check(null));
+        assertFalse(Authorization.requireClearance(1).check(null));
+        assertFalse(Authorization.requireAuthorized().check(null));
     }
 
     @Test
-    void noneGrantFails() {
-        assertFalse(Authorization.level(1).check(Grant.none()));
+    void noneGrantFailsAll() {
+        assertFalse(Authorization.requireClearance(0).check(Grant.none()));
+        assertFalse(Authorization.requireAuthorized().check(Grant.none()));
     }
 
     @Test
-    void allGrantPassesEverything() {
-        assertTrue(Authorization.level(100).check(Grant.all()));
+    void zeroClearancePassesZeroLevel() {
+        assertTrue(Authorization.requireClearance(0).check(Grant.clearance(0)));
+        assertTrue(Authorization.requireClearance(0).check(Grant.clearance(1)));
     }
 
     @Test
-    void zeroLevelPassesAnyAuthorized() {
-        assertTrue(Authorization.level(0).check(Grant.at(0)));
-        assertTrue(Authorization.level(0).check(Grant.at(1)));
+    void dimensionsAreOrthogonal() {
+        assertFalse(Authorization.requireAuthorized().check(Grant.clearance(100)));
+        assertFalse(Authorization.requireClearance(1).check(Grant.authorized()));
+        assertFalse(Authorization.requireScopes("x").check(Grant.authorized()));
     }
 }

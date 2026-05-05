@@ -22,6 +22,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DefaultValue {
-    /** The default value. */
+    /**
+     * The default value.
+     *
+     * @return the default value string
+     */
     String value();
 }

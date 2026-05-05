@@ -33,6 +33,8 @@ public @interface Preprocessor {
     /**
      * Execution priority. Lower values run first. Default is {@code 0}.
      * Preprocessors with equal priority run in undefined order.
+     *
+     * @return the priority value
      */
     int priority() default 0;
 }

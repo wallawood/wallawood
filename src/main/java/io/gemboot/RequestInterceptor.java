@@ -1,5 +1,7 @@
 package io.gemboot;
 
+import io.gemboot.annotations.RequireAuthorized;
+
 import java.util.Optional;
 
 /**
@@ -23,7 +25,7 @@ import java.util.Optional;
  * request logging.
  *
  * <p>Use {@link Authorization} to check grants with the same logic the framework
- * uses for {@link io.gemboot.annotations.Authorize @Authorize}:
+ * uses for {@link RequireAuthorized @RequireAuthorized}:
  *
  * <pre>{@code
  * @Preprocessor(priority = 10)

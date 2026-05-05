@@ -26,6 +26,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface QueryParam {
-    /** The name of the query parameter to bind. */
+    /**
+     * The name of the query parameter to bind.
+     *
+     * @return the parameter name
+     */
     String value();
 }

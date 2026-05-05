@@ -21,6 +21,9 @@ public final class RequestContext {
 
     private final Map<Class<?>, Object> context = new LinkedHashMap<>();
 
+    /** Creates an empty request context. */
+    public RequestContext() {}
+
     /**
      * Adds an object to the context, keyed by its runtime class.
      * Null values are ignored. Duplicate types are rejected.
@@ -40,7 +43,8 @@ public final class RequestContext {
      * must be assignable to {@code key}. Null values are ignored. Duplicate
      * types are rejected.
      *
-     * @param key  the type to register under
+     * @param <T>   the type
+     * @param key   the type to register under
      * @param value the object to add
      * @throws IllegalArgumentException if {@code value} is not assignable to {@code key}
      * @throws IllegalStateException    if an entry for this type already exists
@@ -61,6 +65,7 @@ public final class RequestContext {
      * Retrieves an entry by type, or {@code null} if not present.
      * Tries exact match first, then falls back to assignability.
      *
+     * @param <T>   the type
      * @param clazz the type to look up
      * @return the stored instance, or {@code null}
      */

@@ -15,12 +15,25 @@ public final class AccessLog {
 
     private AccessLog() {}
 
+    /**
+     * Logs a completed request with path, status, and duration.
+     *
+     * @param path the request path
+     * @param response the response sent
+     * @param durationMs time taken in milliseconds
+     */
     public static void log(String path, GeminiResponse response, long durationMs) {
         if (log.isInfoEnabled()) {
             log.info("{} {} {}ms", path, response.status(), durationMs);
         }
     }
 
+    /**
+     * Logs a formatted message to the access log.
+     *
+     * @param format SLF4J format string
+     * @param args format arguments
+     */
     public static void log(String format, Object... args) {
         if (log.isInfoEnabled()) {
             log.info(format, args);

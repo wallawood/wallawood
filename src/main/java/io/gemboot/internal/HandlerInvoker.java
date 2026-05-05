@@ -4,7 +4,9 @@ import io.gemboot.GeminiResponse;
 import io.gemboot.Authorization;
 import io.gemboot.Grant;
 import io.gemboot.RequestContext;
-import io.gemboot.annotations.Authorize;
+import io.gemboot.annotations.RequireAuthorized;
+import io.gemboot.annotations.RequireClearance;
+import io.gemboot.annotations.RequireScopes;
 import io.gemboot.annotations.QueryString;
 import io.gemboot.annotations.RequireCertificate;
 import io.gemboot.annotations.RequireInput;
@@ -23,12 +25,21 @@ import java.util.Map;
 
 /**
  * Resolves handler method parameters and invokes the handler. Pre-invocation
- * checks run in order: {@link RequireCertificate @RequireCertificate},
- * {@link Authorize @Authorize}, {@link RequireInput @RequireInput},
- * {@link RequireSensitiveInput @RequireSensitiveInput}.
+ * checks run in order:
+ * <ol>
+ *   <li>{@link RequireCertificate @RequireCertificate} — rejects if no client cert (status 60)</li>
+ *   <li>Authorization annotations ({@link RequireAuthorized @RequireAuthorized},
+ *       {@link RequireClearance @RequireClearance}, {@link RequireScopes @RequireScopes})
+ *       — collected from method then class and combined with AND semantics.
+ *       Rejects with status 60 if no cert, or status 61 if the grant fails.</li>
+ *   <li>{@link RequireInput @RequireInput} — prompts for input if query is missing (status 10)</li>
+ *   <li>{@link RequireSensitiveInput @RequireSensitiveInput} — prompts for sensitive input (status 11)</li>
+ * </ol>
  *
- * <p>Both {@code io.gemboot.annotations} and {@code jakarta.ws.rs} annotation
- * variants are accepted for parameter binding.
+ * <p>When multiple authorization annotations are present on a method (or inherited
+ * from the class), all must be satisfied. For OR logic, use a
+ * {@link io.gemboot.annotations.Preprocessor @Preprocessor} with
+ * {@link Authorization} directly.
  *
  * <p>Handler methods must return {@link GeminiResponse}.
  */
@@ -121,30 +132,50 @@ public final class HandlerInvoker {
     }
 
     private static GeminiResponse checkAuthorize(HandlerMethod handler, RequestContext ctx) {
-        Authorize auth = handler.method().getAnnotation(Authorize.class);
-        if (auth == null) {
-            auth = handler.controller().getClass().getAnnotation(Authorize.class);
+        Method method = handler.method();
+        Class<?> controllerClass = handler.controller().getClass();
+
+        Authorization.Builder authBuilder = null;
+        String message = Authorization.DEFAULT_MESSAGE;
+
+        RequireAuthorized reqAuth = method.getAnnotation(RequireAuthorized.class);
+        if (reqAuth == null) reqAuth = controllerClass.getAnnotation(RequireAuthorized.class);
+        if (reqAuth != null) {
+            authBuilder = Authorization.builder().requireAuthorized();
+            message = reqAuth.message();
         }
-        if (auth == null) {
+
+        RequireClearance reqLevel = method.getAnnotation(RequireClearance.class);
+        if (reqLevel == null) reqLevel = controllerClass.getAnnotation(RequireClearance.class);
+        if (reqLevel != null) {
+            if (authBuilder == null) authBuilder = Authorization.builder();
+            authBuilder.requireClearance(reqLevel.level());
+            message = reqLevel.message();
+        }
+
+        RequireScopes reqScopes = method.getAnnotation(RequireScopes.class);
+        if (reqScopes == null) reqScopes = controllerClass.getAnnotation(RequireScopes.class);
+        if (reqScopes != null) {
+            if (authBuilder == null) authBuilder = Authorization.builder();
+            authBuilder.requireScopes(reqScopes.scopes());
+            message = reqScopes.message();
+        }
+
+        if (authBuilder == null) {
             return null;
         }
 
         X509Certificate cert = ctx.get(X509Certificate.class);
         if (cert == null) {
-            return GeminiResponse.clientCertificateRequired(auth.message());
+            return GeminiResponse.clientCertificateRequired(message);
         }
 
         Grant grant = ctx.get(Grant.class);
-        Authorization authz = fromAnnotation(auth);
-        if (!authz.check(grant)) {
-            return GeminiResponse.certificateNotAuthorized(auth.message());
+        if (!authBuilder.build().check(grant)) {
+            return GeminiResponse.certificateNotAuthorized(message);
         }
 
         return null;
-    }
-
-    private static Authorization fromAnnotation(Authorize auth) {
-        return new Authorization(auth.level(), auth.scopes());
     }
 
     private static Object[] resolveArgs(Method method, Map<String, String> pathVars, RequestContext requestContext) {

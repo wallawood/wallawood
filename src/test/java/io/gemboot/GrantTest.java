@@ -15,25 +15,25 @@ class GrantTest {
     }
 
     @Test
-    void allIsAuthorizedWithMaxLevel() {
-        Grant grant = Grant.all();
+    void authorizedOnlySetsAuthorizedFlag() {
+        Grant grant = Grant.authorized();
         assertTrue(grant.isAuthorized());
-        assertEquals(Integer.MAX_VALUE, grant.level());
+        assertEquals(-1, grant.level());
         assertTrue(grant.scopes().isEmpty());
     }
 
     @Test
-    void atSetsLevel() {
-        Grant grant = Grant.at(3);
-        assertTrue(grant.isAuthorized());
+    void clearanceOnlySetsLevel() {
+        Grant grant = Grant.clearance(3);
+        assertFalse(grant.isAuthorized());
         assertEquals(3, grant.level());
         assertTrue(grant.scopes().isEmpty());
     }
 
     @Test
-    void someSetsScopes() {
-        Grant grant = Grant.some("read", "write");
-        assertTrue(grant.isAuthorized());
+    void scopesOnlySetsScopes() {
+        Grant grant = Grant.scopes("read", "write");
+        assertFalse(grant.isAuthorized());
         assertEquals(-1, grant.level());
         assertEquals(2, grant.scopes().size());
         assertTrue(grant.scopes().contains("read"));
@@ -42,19 +42,31 @@ class GrantTest {
 
     @Test
     void hasScopesReturnsTrueWhenAllPresent() {
-        Grant grant = Grant.some("read", "write", "admin");
+        Grant grant = Grant.scopes("read", "write", "admin");
         assertTrue(grant.hasScopes("read", "write"));
     }
 
     @Test
     void hasScopesReturnsFalseWhenMissing() {
-        Grant grant = Grant.some("read");
+        Grant grant = Grant.scopes("read");
         assertFalse(grant.hasScopes("read", "write"));
     }
 
     @Test
     void scopesAreUnmodifiable() {
-        Grant grant = Grant.some("read");
+        Grant grant = Grant.scopes("read");
         assertThrows(UnsupportedOperationException.class, () -> grant.scopes().add("write"));
+    }
+
+    @Test
+    void builderCombinesAllDimensions() {
+        Grant grant = Grant.builder()
+                .authorized(true)
+                .level(5)
+                .addScope("admin")
+                .build();
+        assertTrue(grant.isAuthorized());
+        assertEquals(5, grant.level());
+        assertTrue(grant.hasScopes("admin"));
     }
 }

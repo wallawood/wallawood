@@ -1,110 +1,252 @@
 package io.gemboot;
 
+import io.gemboot.annotations.RequireAuthorized;
+
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * An immutable authorization grant representing what a client is allowed to do.
+ * An immutable authorization grant representing what a client has been given.
  * Attached to a {@link RequestContext} by a {@link RequestInterceptor @Preprocessor}
  * interceptor, typically after inspecting the client's TLS certificate.
  *
  * <p>A Grant describes <b>what the user has</b>. To describe <b>what is required</b>,
- * use {@link Authorization} or the {@link io.gemboot.annotations.Authorize @Authorize}
- * annotation.
+ * use {@link Authorization} or the security annotations
+ * ({@link RequireAuthorized @RequireAuthorized},
+ * {@link io.gemboot.annotations.RequireClearance @RequireClearance},
+ * {@link io.gemboot.annotations.RequireScopes @RequireScopes}).
  *
- * <p>Supports three authorization models:
+ * <p>Three orthogonal dimensions, each checked independently:
  * <ul>
- *   <li><b>Simple</b> — {@link #all()} or {@link #none()} for authenticated/unauthenticated</li>
- *   <li><b>Level-based</b> — {@link #at(int)} for role hierarchies (e.g. user=1, mod=2, admin=3)</li>
- *   <li><b>Scope-based</b> — {@link #some(String...)} for fine-grained permissions</li>
+ * <li><b>Authorized</b> — a boolean flag checked by {@code @RequireAuthorized}</li>
+ * <li><b>Clearance</b> — a numeric level checked by {@code @RequireClearance}</li>
+ * <li><b>Scopes</b> — a set of permission strings checked by {@code @RequireScopes}</li>
  * </ul>
  *
- * <p>Instances are immutable and safe to share across threads.
+ * <p>These dimensions do not imply each other. A grant with clearance 5 does not
+ * automatically satisfy {@code @RequireAuthorized}, and vice versa. The application
+ * decides which dimensions to set via the builder or factory methods.
+ *
+ * <p>Instances are immutable and safe to share across threads. Use {@link #builder()}
+ * to construct grants spanning multiple dimensions.
  *
  * <pre>{@code
  * // In a @Preprocessor — set what the user has:
- * context.add(Grant.at(3));
+ * context.add(Grant.clearance(3));
  *
- * // The framework checks it automatically via @Authorize:
- * @Authorize(level = 2)
- * public GeminiResponse adminPanel() { ... }
+ * // Or combine dimensions:
+ * context.add(Grant.builder()
+ *     .authorized(true)
+ *     .level(2)
+ *     .addScope("read:messages")
+ *     .build());
  *
- * // Or check manually in a preprocessor via Authorization:
- * Authorization.level(2).check(grant)
+ * // The framework checks annotations automatically:
+ * @RequireClearance(level = 2)
+ * @RequireScopes(scopes = "read:messages")
+ * public GeminiResponse inbox() { ... }
+ *
+ * // Or check manually in a preprocessor:
+ * Authorization.requireClearance(2).check(grant)
  * }</pre>
  *
  * @see Authorization
- * @see io.gemboot.annotations.Authorize
+ * @see RequireAuthorized
+ * @see io.gemboot.annotations.RequireClearance
+ * @see io.gemboot.annotations.RequireScopes
  */
 public final class Grant {
 
     private final boolean authorized;
-    private final boolean all;
     private final int level;
     private final Set<String> scopes;
 
-    private Grant(boolean authorized, boolean all, int level, Set<String> scopes) {
+    private Grant(boolean authorized, int level, Set<String> scopes) {
         this.authorized = authorized;
-        this.all = all;
         this.level = level;
         this.scopes = Set.copyOf(scopes);
     }
 
-    /** No permissions. Authorization checks will fail. */
-    public static Grant none() {
-        return new Grant(false, false, -1, Set.of());
-    }
-
     /**
-     * Full permissions. Bypasses all authorization checks — level requirements,
-     * scope requirements, and simple {@code isAuthorized()} checks will all pass.
-     * Intended for superadmin or testing scenarios.
+     * Creates a new Builder for constructing a Grant.
+     *
+     * @return a new builder
      */
-    public static Grant all() {
-        return new Grant(true, true, Integer.MAX_VALUE, Set.of());
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
-     * Level-based grant. Passes {@link io.gemboot.annotations.Authorize @Authorize}
-     * checks where the required level is {@code <=} this level.
+     * No permissions. Fails all authorization checks. Represents an
+     * unauthenticated or explicitly denied client.
+     *
+     * @return a grant with no permissions
+     */
+    public static Grant none() {
+        return new Grant(false, -1, Set.of());
+    }
+
+    /**
+     * Simple authorized grant. Only satisfies {@code @RequireAuthorized} checks.
+     * Does not imply any clearance level or scopes.
+     *
+     * @return an authorized-only grant
+     */
+    public static Grant authorized() {
+        return builder().authorized(true).build();
+    }
+
+    /**
+     * Level-based grant. Only satisfies {@code @RequireClearance} checks where
+     * the required level is {@code <=} this level. Does not imply authorized
+     * or any scopes.
      *
      * @param level the authorization level (higher = more access)
+     * @return a clearance-only grant
      */
-    public static Grant at(int level) {
-        return new Grant(true, false, level, Set.of());
+    public static Grant clearance(int level) {
+        return builder().level(level).build();
     }
 
     /**
-     * Scope-based grant. Passes {@link io.gemboot.annotations.Authorize @Authorize}
-     * checks where all required scopes are present in this grant.
+     * Scope-based grant. Only satisfies {@code @RequireScopes} checks where
+     * all required scopes are present. Does not imply authorized or any
+     * clearance level.
      *
      * @param scopes the granted scopes
+     * @return a scopes-only grant
      */
-    public static Grant some(String... scopes) {
-        return new Grant(true, false, -1, Set.of(scopes));
+    public static Grant scopes(String... scopes) {
+        return builder().addScopes(scopes).build();
     }
 
-    /** Whether this grant represents an authenticated request. */
+    /**
+     * Whether this grant satisfies {@code @RequireAuthorized} checks.
+     *
+     * @return {@code true} if authorized
+     */
     public boolean isAuthorized() {
         return authorized;
     }
 
-    /** The authorization level, or {@code -1} if not level-based. */
+    /**
+     * The clearance level, or {@code -1} if not set. Checked by {@code @RequireClearance}.
+     *
+     * @return the clearance level
+     */
     public int level() {
         return level;
     }
 
-    /** The granted scopes (unmodifiable). Empty if not scope-based. */
+    /**
+     * The granted scopes (unmodifiable). Empty if not set. Checked by {@code @RequireScopes}.
+     *
+     * @return the scope set
+     */
     public Set<String> scopes() {
         return scopes;
     }
 
-    /** Returns {@code true} if this grant contains all of the given scopes. */
+    /**
+     * Returns {@code true} if this grant contains all of the given scopes.
+     *
+     * @param required the scopes to check
+     * @return {@code true} if all required scopes are present
+     */
     public boolean hasScopes(String... required) {
-        return all || scopes.containsAll(Set.of(required));
+        return scopes.containsAll(Arrays.asList(required));
     }
 
-    /** Returns {@code true} if this grant contains all of the given scopes. */
+    /**
+     * Returns {@code true} if this grant contains all of the given scopes.
+     *
+     * @param required the scopes to check
+     * @return {@code true} if all required scopes are present
+     */
     public boolean hasScopes(Set<String> required) {
-        return all || scopes.containsAll(required);
+        return scopes.containsAll(required);
+    }
+
+    /**
+     * Builder for constructing immutable {@link Grant} instances.
+     */
+    public static final class Builder {
+        private boolean authorized = false;
+        private int level = -1;
+        private final Set<String> scopes = new HashSet<>();
+
+        private Builder() {
+        }
+
+        /**
+         * Sets the simple authorization flag.
+         *
+         * @param authorized whether the grant is authorized
+         * @return this builder
+         */
+        public Builder authorized(boolean authorized) {
+            this.authorized = authorized;
+            return this;
+        }
+
+        /**
+         * Sets the authorization clearance level.
+         *
+         * @param level the clearance level
+         * @return this builder
+         */
+        public Builder level(int level) {
+            this.level = level;
+            return this;
+        }
+
+        /**
+         * Adds a single scope to this grant.
+         *
+         * @param scope the scope to add
+         * @return this builder
+         */
+        public Builder addScope(String scope) {
+            if (scope != null) {
+                this.scopes.add(scope);
+            }
+            return this;
+        }
+
+        /**
+         * Adds multiple scopes to this grant.
+         *
+         * @param scopes the scopes to add
+         * @return this builder
+         */
+        public Builder addScopes(String... scopes) {
+            if (scopes != null) {
+                this.scopes.addAll(Arrays.asList(scopes));
+            }
+            return this;
+        }
+
+        /**
+         * Adds a collection of scopes to this grant.
+         *
+         * @param scopes the scopes to add
+         * @return this builder
+         */
+        public Builder addScopes(Set<String> scopes) {
+            if (scopes != null) {
+                this.scopes.addAll(scopes);
+            }
+            return this;
+        }
+
+        /**
+         * Builds and returns the immutable {@link Grant} instance.
+         *
+         * @return the constructed grant
+         */
+        public Grant build() {
+            return new Grant(authorized, level, scopes);
+        }
     }
 }

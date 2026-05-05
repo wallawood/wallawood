@@ -26,6 +26,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface PathParam {
-    /** The name of the path variable to bind. */
+    /**
+     * The name of the path variable to bind.
+     *
+     * @return the variable name
+     */
     String value();
 }

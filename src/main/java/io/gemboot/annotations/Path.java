@@ -31,6 +31,10 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Path {
-    /** The URI path pattern. */
+    /**
+     * The URI path pattern.
+     *
+     * @return the path pattern
+     */
     String value();
 }

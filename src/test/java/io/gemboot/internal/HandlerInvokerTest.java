@@ -2,7 +2,9 @@ package io.gemboot.internal;
 
 import io.gemboot.Grant;
 import io.gemboot.RequestContext;
-import io.gemboot.annotations.Authorize;
+import io.gemboot.annotations.RequireAuthorized;
+import io.gemboot.annotations.RequireClearance;
+import io.gemboot.annotations.RequireScopes;
 import io.gemboot.annotations.DefaultValue;
 import io.gemboot.annotations.Path;
 import io.gemboot.annotations.PathParam;
@@ -105,27 +107,42 @@ class HandlerInvokerTest {
         }
 
         @Path("/auth-simple")
-        @Authorize
+        @RequireAuthorized
         public GeminiResponse authSimple() {
             return GeminiResponse.success("authorized");
         }
 
         @Path("/auth-level")
-        @Authorize(level = 3, message = "Admins only")
+        @RequireClearance(level = 3, message = "Admins only")
         public GeminiResponse authLevel() {
             return GeminiResponse.success("admin");
         }
 
         @Path("/auth-scope")
-        @Authorize(scopes = "notes:write", message = "Missing scope")
+        @RequireScopes(scopes = "notes:write", message = "Missing scope")
         public GeminiResponse authScope() {
             return GeminiResponse.success("scoped");
         }
 
         @Path("/auth-multi-scope")
-        @Authorize(scopes = {"notes:read", "notes:write"})
+        @RequireScopes(scopes = {"notes:read", "notes:write"})
         public GeminiResponse authMultiScope() {
             return GeminiResponse.success("multi-scoped");
+        }
+
+        @Path("/auth-level-and-scope")
+        @RequireClearance(level = 2)
+        @RequireScopes(scopes = "admin:write", message = "Insufficient permissions")
+        public GeminiResponse authLevelAndScope() {
+            return GeminiResponse.success("level+scope");
+        }
+
+        @Path("/auth-all-three")
+        @RequireAuthorized
+        @RequireClearance(level = 3)
+        @RequireScopes(scopes = "super:admin")
+        public GeminiResponse authAllThree() {
+            return GeminiResponse.success("all-three");
         }
     }
 
@@ -140,7 +157,7 @@ class HandlerInvokerTest {
     }
 
     @GeminiController
-    @Authorize(level = 2, message = "Members only")
+    @RequireClearance(level = 2, message = "Members only")
     static class AuthorizedController {
 
         @Path("/members")
@@ -390,12 +407,12 @@ class HandlerInvokerTest {
         assertTrue(new String(result.body()).contains("logged in"));
     }
 
-    // --- @Authorize tests ---
+    // --- @RequireAuthorized tests ---
 
     @Test
     void authorizeSimplePassesWithGrant() throws Exception {
         var handler = handlerFor(new TestController(), "authSimple");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-simple"), Grant.all()), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-simple"), Grant.authorized()), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
 
@@ -413,66 +430,72 @@ class HandlerInvokerTest {
         assertEquals(61, result.status());
     }
 
+    // --- @RequireClearance tests ---
+
     @Test
-    void authorizeLevelPassesWhenSufficient() throws Exception {
+    void clearanceLevelPassesWhenSufficient() throws Exception {
         var handler = handlerFor(new TestController(), "authLevel");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.at(5)), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.clearance(5)), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
 
     @Test
-    void authorizeLevelPassesWhenExact() throws Exception {
+    void clearanceLevelPassesWhenExact() throws Exception {
         var handler = handlerFor(new TestController(), "authLevel");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.at(3)), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.clearance(3)), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
 
     @Test
-    void authorizeLevelFailsWhenInsufficient() throws Exception {
+    void clearanceLevelFailsWhenInsufficient() throws Exception {
         var handler = handlerFor(new TestController(), "authLevel");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.at(2)), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.clearance(2)), ExceptionResolver.none());
         assertEquals(61, result.status());
         assertEquals("Admins only", result.meta());
     }
 
+    // --- @RequireScopes tests ---
+
     @Test
-    void authorizeScopePassesWhenPresent() throws Exception {
+    void scopePassesWhenPresent() throws Exception {
         var handler = handlerFor(new TestController(), "authScope");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-scope"), Grant.some("notes:write", "notes:read")), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-scope"), Grant.scopes("notes:write", "notes:read")), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
 
     @Test
-    void authorizeScopeFailsWhenMissing() throws Exception {
+    void scopeFailsWhenMissing() throws Exception {
         var handler = handlerFor(new TestController(), "authScope");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-scope"), Grant.some("notes:read")), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-scope"), Grant.scopes("notes:read")), ExceptionResolver.none());
         assertEquals(61, result.status());
         assertEquals("Missing scope", result.meta());
     }
 
     @Test
-    void authorizeMultiScopePassesWhenAllPresent() throws Exception {
+    void multiScopePassesWhenAllPresent() throws Exception {
         var handler = handlerFor(new TestController(), "authMultiScope");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-multi-scope"), Grant.some("notes:read", "notes:write", "admin")), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-multi-scope"), Grant.scopes("notes:read", "notes:write", "admin")), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
 
     @Test
-    void authorizeMultiScopeFailsWhenPartial() throws Exception {
+    void multiScopeFailsWhenPartial() throws Exception {
         var handler = handlerFor(new TestController(), "authMultiScope");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-multi-scope"), Grant.some("notes:read")), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-multi-scope"), Grant.scopes("notes:read")), ExceptionResolver.none());
         assertEquals(61, result.status());
     }
 
     @Test
-    void authorizeAllGrantPassesLevelCheck() throws Exception {
+    void authorizedGrantDoesNotBypassClearanceCheck() throws Exception {
         var handler = handlerFor(new TestController(), "authLevel");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.all()), ExceptionResolver.none());
-        assertEquals(20, result.status());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level"), Grant.authorized()), ExceptionResolver.none());
+        assertEquals(61, result.status());
     }
 
+    // --- Class-level annotation tests ---
+
     @Test
-    void authorizeOnClassReturns60WhenNoCert() throws Exception {
+    void clearanceOnClassReturns60WhenNoCert() throws Exception {
         var handler = handlerFor(new AuthorizedController(), "members");
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctx(URI.create("gemini://localhost/members")), ExceptionResolver.none());
         assertEquals(60, result.status());
@@ -480,9 +503,73 @@ class HandlerInvokerTest {
     }
 
     @Test
-    void authorizeOnClassPassesWithSufficientLevel() throws Exception {
+    void clearanceOnClassPassesWithSufficientLevel() throws Exception {
         var handler = handlerFor(new AuthorizedController(), "members");
-        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/members"), Grant.at(2)), ExceptionResolver.none());
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/members"), Grant.clearance(2)), ExceptionResolver.none());
         assertEquals(20, result.status());
+    }
+
+    // --- AND semantics: multiple annotations on one method ---
+
+    @Test
+    void andSemanticsPassesWhenBothClearanceAndScopesMet() throws Exception {
+        var handler = handlerFor(new TestController(), "authLevelAndScope");
+        var grant = Grant.builder().authorized(true).level(3).addScope("admin:write").build();
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level-and-scope"), grant), ExceptionResolver.none());
+        assertEquals(20, result.status());
+    }
+
+    @Test
+    void andSemanticsFailsWhenOnlyClearanceMet() throws Exception {
+        var handler = handlerFor(new TestController(), "authLevelAndScope");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level-and-scope"), Grant.clearance(5)), ExceptionResolver.none());
+        assertEquals(61, result.status());
+    }
+
+    @Test
+    void andSemanticsFailsWhenOnlyScopesMet() throws Exception {
+        var handler = handlerFor(new TestController(), "authLevelAndScope");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level-and-scope"), Grant.scopes("admin:write")), ExceptionResolver.none());
+        assertEquals(61, result.status());
+    }
+
+    @Test
+    void andSemanticsAllThreePassesWithFullGrant() throws Exception {
+        var handler = handlerFor(new TestController(), "authAllThree");
+        var grant = Grant.builder().authorized(true).level(5).addScope("super:admin").build();
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
+        assertEquals(20, result.status());
+    }
+
+    @Test
+    void andSemanticsAllThreeFailsWithoutAuthorized() throws Exception {
+        var handler = handlerFor(new TestController(), "authAllThree");
+        var grant = Grant.builder().level(5).addScope("super:admin").build();
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
+        assertEquals(61, result.status());
+    }
+
+    @Test
+    void andSemanticsAllThreeFailsWithoutClearance() throws Exception {
+        var handler = handlerFor(new TestController(), "authAllThree");
+        var grant = Grant.builder().authorized(true).addScope("super:admin").build();
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
+        assertEquals(61, result.status());
+    }
+
+    @Test
+    void andSemanticsAllThreeFailsWithoutScopes() throws Exception {
+        var handler = handlerFor(new TestController(), "authAllThree");
+        var grant = Grant.builder().authorized(true).level(5).build();
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
+        assertEquals(61, result.status());
+    }
+
+    @Test
+    void andSemanticsUsesLastAnnotationMessage() throws Exception {
+        var handler = handlerFor(new TestController(), "authLevelAndScope");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level-and-scope"), Grant.clearance(1)), ExceptionResolver.none());
+        assertEquals(61, result.status());
+        assertEquals("Insufficient permissions", result.meta());
     }
 }

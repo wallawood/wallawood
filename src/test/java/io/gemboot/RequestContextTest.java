@@ -32,7 +32,7 @@ class RequestContextTest {
     @Test
     void addDuplicateTypeThrows() {
         var ctx = new RequestContext();
-        ctx.add(Grant.all());
+        ctx.add(Grant.authorized());
         assertThrows(IllegalStateException.class, () -> ctx.add(Grant.none()));
     }
 
@@ -47,7 +47,7 @@ class RequestContextTest {
     void multipleTypesCoexist() {
         var ctx = new RequestContext();
         var uri = URI.create("gemini://localhost");
-        var grant = Grant.at(5);
+        var grant = Grant.clearance(5);
         ctx.add(uri);
         ctx.add(grant);
         assertEquals(uri, ctx.get(URI.class));
