@@ -4,8 +4,8 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'io.gemboot'
-version = '0.1.0-SNAPSHOT'
+group = 'io.github.wallawood'
+version = '0.8.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -46,9 +46,9 @@ shadowJar {
         exclude(dependency('io.projectreactor.netty:.*'))
         exclude(dependency('io.projectreactor:.*'))
     }
-    relocate 'org.springframework', 'io.gemboot.internal.spring'
-    relocate 'io.micrometer', 'io.gemboot.internal.micrometer'
-    relocate 'org.bouncycastle', 'io.gemboot.internal.bouncycastle'
+    relocate 'org.springframework', 'io.github.wallawood.internal.spring'
+    relocate 'io.micrometer', 'io.github.wallawood.internal.micrometer'
+    relocate 'org.bouncycastle', 'io.github.wallawood.internal.bouncycastle'
     archiveClassifier.set('')
 }
 
@@ -59,7 +59,7 @@ publishing {
             artifact sourcesJar
             artifact javadocJar
             pom {
-                name = 'Gemboot Server'
+                name = 'Wallawood Server'
                 description = 'A Java library for building Gemini protocol servers'
                 withXml {
                     def deps = asNode().appendNode('dependencies')
