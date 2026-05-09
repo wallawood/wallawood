@@ -62,7 +62,7 @@ class GrantTest {
     void builderCombinesAllDimensions() {
         Grant grant = Grant.builder()
                 .authorized(true)
-                .level(5)
+                .clearance(5)
                 .addScope("admin")
                 .build();
         assertTrue(grant.isAuthorized());

@@ -205,7 +205,8 @@ public final class HandlerInvoker {
 
             if (param.isAnnotationPresent(QueryString.class)) {
                 String raw = requestUri.getRawQuery();
-                args[i] = raw != null ? decode(raw) : applyDefault(null, param);
+                String value = raw != null ? decode(raw) : applyDefault(null, param);
+                args[i] = convert(value, param.getType());
                 continue;
             }
 

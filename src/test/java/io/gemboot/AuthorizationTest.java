@@ -47,7 +47,7 @@ class AuthorizationTest {
                 .requireClearance(3)
                 .requireScopes("write")
                 .build();
-        var full = Grant.builder().level(3).addScope("write").build();
+        var full = Grant.builder().clearance(3).addScope("write").build();
         assertTrue(auth.check(full));
         assertFalse(auth.check(Grant.clearance(3)));
         assertFalse(auth.check(Grant.scopes("write")));
@@ -60,11 +60,11 @@ class AuthorizationTest {
                 .requireClearance(2)
                 .requireScopes("admin")
                 .build();
-        var full = Grant.builder().authorized(true).level(2).addScope("admin").build();
+        var full = Grant.builder().authorized(true).clearance(2).addScope("admin").build();
         assertTrue(auth.check(full));
-        assertFalse(auth.check(Grant.builder().level(2).addScope("admin").build()));
+        assertFalse(auth.check(Grant.builder().clearance(2).addScope("admin").build()));
         assertFalse(auth.check(Grant.builder().authorized(true).addScope("admin").build()));
-        assertFalse(auth.check(Grant.builder().authorized(true).level(2).build()));
+        assertFalse(auth.check(Grant.builder().authorized(true).clearance(2).build()));
     }
 
     @Test

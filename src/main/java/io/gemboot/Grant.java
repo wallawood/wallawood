@@ -38,7 +38,7 @@ import java.util.Set;
  * // Or combine dimensions:
  * context.add(Grant.builder()
  *     .authorized(true)
- *     .level(2)
+ *     .clearance(2)
  *     .addScope("read:messages")
  *     .build());
  *
@@ -106,7 +106,7 @@ public final class Grant {
      * @return a clearance-only grant
      */
     public static Grant clearance(int level) {
-        return builder().level(level).build();
+        return builder().clearance(level).build();
     }
 
     /**
@@ -193,11 +193,11 @@ public final class Grant {
         /**
          * Sets the authorization clearance level.
          *
-         * @param level the clearance level
+         * @param clearance the clearance level
          * @return this builder
          */
-        public Builder level(int level) {
-            this.level = level;
+        public Builder clearance(int clearance) {
+            this.level = clearance;
             return this;
         }
 

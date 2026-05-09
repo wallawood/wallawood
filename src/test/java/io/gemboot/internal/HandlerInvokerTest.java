@@ -106,6 +106,16 @@ class HandlerInvokerTest {
             return GeminiResponse.success("raw " + input);
         }
 
+        @Path("/raw-int")
+        public GeminiResponse rawInt(@QueryString int value) {
+            return GeminiResponse.success("int " + value);
+        }
+
+        @Path("/raw-bool")
+        public GeminiResponse rawBool(@QueryString boolean flag) {
+            return GeminiResponse.success("bool " + flag);
+        }
+
         @Path("/auth-simple")
         @RequireAuthorized
         public GeminiResponse authSimple() {
@@ -340,6 +350,29 @@ class HandlerInvokerTest {
     }
 
     @Test
+    void queryStringCoercesToInt() throws Exception {
+        var handler = handlerFor(new TestController(), "rawInt");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctx(URI.create("gemini://localhost/raw-int?99")), ExceptionResolver.none());
+        assertEquals(20, result.status());
+        assertTrue(new String(result.body()).contains("int 99"));
+    }
+
+    @Test
+    void queryStringCoercesToBoolean() throws Exception {
+        var handler = handlerFor(new TestController(), "rawBool");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctx(URI.create("gemini://localhost/raw-bool?true")), ExceptionResolver.none());
+        assertEquals(20, result.status());
+        assertTrue(new String(result.body()).contains("bool true"));
+    }
+
+    @Test
+    void queryStringInvalidIntReturnsBadRequest() throws Exception {
+        var handler = handlerFor(new TestController(), "rawInt");
+        var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctx(URI.create("gemini://localhost/raw-int?abc")), ExceptionResolver.none());
+        assertEquals(59, result.status());
+    }
+
+    @Test
     void convertsPathParamToInt() throws Exception {
         var handler = handlerFor(new TestController(), "userInt");
         var result = HandlerInvoker.invoke(matched(handler, Map.of("id", "99")), ctx(URI.create("gemini://localhost/user-int/99")), ExceptionResolver.none());
@@ -514,7 +547,7 @@ class HandlerInvokerTest {
     @Test
     void andSemanticsPassesWhenBothClearanceAndScopesMet() throws Exception {
         var handler = handlerFor(new TestController(), "authLevelAndScope");
-        var grant = Grant.builder().authorized(true).level(3).addScope("admin:write").build();
+        var grant = Grant.builder().authorized(true).clearance(3).addScope("admin:write").build();
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-level-and-scope"), grant), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
@@ -536,7 +569,7 @@ class HandlerInvokerTest {
     @Test
     void andSemanticsAllThreePassesWithFullGrant() throws Exception {
         var handler = handlerFor(new TestController(), "authAllThree");
-        var grant = Grant.builder().authorized(true).level(5).addScope("super:admin").build();
+        var grant = Grant.builder().authorized(true).clearance(5).addScope("super:admin").build();
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
         assertEquals(20, result.status());
     }
@@ -544,7 +577,7 @@ class HandlerInvokerTest {
     @Test
     void andSemanticsAllThreeFailsWithoutAuthorized() throws Exception {
         var handler = handlerFor(new TestController(), "authAllThree");
-        var grant = Grant.builder().level(5).addScope("super:admin").build();
+        var grant = Grant.builder().clearance(5).addScope("super:admin").build();
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
         assertEquals(61, result.status());
     }
@@ -560,7 +593,7 @@ class HandlerInvokerTest {
     @Test
     void andSemanticsAllThreeFailsWithoutScopes() throws Exception {
         var handler = handlerFor(new TestController(), "authAllThree");
-        var grant = Grant.builder().authorized(true).level(5).build();
+        var grant = Grant.builder().authorized(true).clearance(5).build();
         var result = HandlerInvoker.invoke(matched(handler, Map.of()), ctxWithCert(URI.create("gemini://localhost/auth-all-three"), grant), ExceptionResolver.none());
         assertEquals(61, result.status());
     }

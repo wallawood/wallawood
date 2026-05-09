@@ -31,7 +31,7 @@ import java.util.Optional;
  * @Preprocessor(priority = 10)
  * public class AdminGuard implements RequestInterceptor {
  *
- *     private static final Authorization ADMIN = Authorization.level(3);
+ *     private static final Authorization ADMIN = Authorization.requireClearance(3);
  *
  *     @Override
  *     public Optional<GeminiResponse> intercept(RequestContext context) {
