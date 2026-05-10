@@ -2,6 +2,7 @@ plugins {
     id 'java-library'
     id 'com.gradleup.shadow' version '8.3.6'
     id 'maven-publish'
+    id 'signing'
 }
 
 group = 'io.github.wallawood'
@@ -59,8 +60,27 @@ publishing {
             artifact sourcesJar
             artifact javadocJar
             pom {
-                name = 'Wallawood Server'
+                name = 'Wallawood'
                 description = 'A Java library for building Gemini protocol servers'
+                url = 'https://github.com/wallawood/wallawood'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'aiqba'
+                        name = 'Adil Iqbal'
+                        email = 'aiqbal85@gmail.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/wallawood/wallawood.git'
+                    developerConnection = 'scm:git:ssh://github.com/wallawood/wallawood.git'
+                    url = 'https://github.com/wallawood/wallawood'
+                }
                 withXml {
                     def deps = asNode().appendNode('dependencies')
                     configurations.api.allDependencies.each { dep ->
@@ -74,6 +94,11 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    useGpgCmd()
+    sign publishing.publications.shadow
 }
 
 jar.enabled = false

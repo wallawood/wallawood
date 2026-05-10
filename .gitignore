@@ -1,6 +1,11 @@
 # Gradle
 .gradle/
 build/
+gradle.properties
+
+# Claude
+.claude/
+CLAUDE.md
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

@@ -1,2 +1,13 @@
 rootProject.name = 'wallawood'
 
+plugins {
+    id 'com.gradleup.nmcp.settings' version '1.5.0'
+}
+
+nmcpSettings {
+    centralPortal {
+        username = findProperty('mavenCentralUsername')
+        password = findProperty('mavenCentralPassword')
+        publishingType = 'AUTOMATIC'
+    }
+}
