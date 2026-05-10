@@ -263,4 +263,22 @@ class StaticResourceResolverTest {
         assertEquals(20, r.status());
         assertTrue(new String(r.body()).contains("# Guide"));
     }
+
+    @Test
+    void dotFileIsNotServed() {
+        assertNull(StaticResourceResolver.resolve("/.env"));
+    }
+
+    @Test
+    void dotDirectoryIsNotServed() {
+        assertNull(StaticResourceResolver.resolve("/.hidden/file.gmi"));
+    }
+
+    @Test
+    void dotSegmentInMiddleOfPathIsNotServed() throws IOException {
+        Path contentDir = tempDir.resolve("dotmid");
+        Files.createDirectories(contentDir.resolve(".secret"));
+        Files.writeString(contentDir.resolve(".secret/file.gmi"), "secret");
+        assertNull(StaticResourceResolver.resolve("/.secret/file.gmi", List.of("file:" + contentDir)));
+    }
 }

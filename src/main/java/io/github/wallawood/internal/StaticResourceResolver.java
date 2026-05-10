@@ -52,6 +52,12 @@ public final class StaticResourceResolver {
             return GeminiResponse.badRequest("Invalid path");
         }
 
+        for (String segment : path.split("/")) {
+            if (!segment.isEmpty() && segment.startsWith(".")) {
+                return null;
+            }
+        }
+
         String resolvedPath = path.endsWith("/") ? path + "index.gmi" : path;
 
         GeminiResponse response = resolveFromClasspath("/static", resolvedPath);
