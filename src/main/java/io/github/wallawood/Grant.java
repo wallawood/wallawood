@@ -193,11 +193,11 @@ public final class Grant {
         /**
          * Sets the authorization clearance level.
          *
-         * @param clearance the clearance level
+         * @param level the clearance level
          * @return this builder
          */
-        public Builder clearance(int clearance) {
-            this.level = clearance;
+        public Builder clearance(int level) {
+            this.level = level;
             return this;
         }
 
