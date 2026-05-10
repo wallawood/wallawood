@@ -243,4 +243,24 @@ class StaticResourceResolverTest {
         GeminiResponse r = StaticResourceResolver.resolve("/missing.gmi", List.of("file:" + contentDir));
         assertNull(r);
     }
+
+    // On Windows, Path.normalize().toString() uses backslashes (\), but classpath roots
+    // are forward-slash strings. Without converting separators before the startsWith
+    // security check, every nested classpath path would be rejected on Windows.
+
+    @Test
+    void nestedClasspathPathResolvesOnAllPlatforms() {
+        GeminiResponse r = StaticResourceResolver.resolve("/docs/guide.gmi");
+        assertNotNull(r, "Nested classpath resource must resolve on all platforms");
+        assertEquals(20, r.status());
+        assertTrue(new String(r.body()).contains("# Guide"));
+    }
+
+    @Test
+    void nestedClasspathDirectoryPrefixResolvesOnAllPlatforms() {
+        GeminiResponse r = StaticResourceResolver.resolve("/docs/guide.gmi", List.of("classpath:/static"));
+        assertNotNull(r, "Nested path via classpath: prefix must resolve on all platforms");
+        assertEquals(20, r.status());
+        assertTrue(new String(r.body()).contains("# Guide"));
+    }
 }

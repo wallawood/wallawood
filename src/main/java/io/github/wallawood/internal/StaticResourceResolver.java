@@ -82,7 +82,7 @@ public final class StaticResourceResolver {
     private static GeminiResponse resolveFromClasspath(String root, String resolvedPath) {
         String resourcePath = root + resolvedPath;
 
-        String normalized = Path.of(resourcePath).normalize().toString();
+        String normalized = Path.of(resourcePath).normalize().toString().replace('\\', '/');
         if (!normalized.startsWith(root)) {
             return null;
         }
